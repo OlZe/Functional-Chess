@@ -110,3 +110,62 @@ pub fn pawn_cannot_move_as_black_test() {
   let assert Ok(moves) = c.show_moves(game, c.b8)
   assert moves == set.new()
 }
+
+pub fn king_can_move_test() {
+  let game =
+    c.Game(
+      board: dict.from_list([
+        #(c.b2, #(c.King, c.White)),
+        #(c.a2, #(c.Pawn, c.Black)),
+        #(c.b1, #(c.Pawn, c.Black)),
+      ]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+
+  let assert Ok(moves) = c.show_moves(game, c.b2)
+  assert moves
+    == set.from_list([c.b3, c.c3, c.c2, c.c1, c.b1, c.a1, c.a2, c.a3])
+}
+
+pub fn king_cannot_move_test() {
+  let game =
+    c.Game(
+      board: dict.from_list([
+        #(c.a1, #(c.King, c.White)),
+        #(c.a2, #(c.Pawn, c.White)),
+        #(c.b2, #(c.Pawn, c.White)),
+        #(c.b1, #(c.Pawn, c.White)),
+      ]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+
+  let assert Ok(moves) = c.show_moves(game, c.a1)
+  assert moves == set.new()
+}
+
+pub fn knight_can_move_test() {
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.d4, #(c.Knight, c.White))]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+
+  let assert Ok(moves) = c.show_moves(game, c.d4)
+  assert moves
+    == set.from_list([c.b5, c.c6, c.e6, c.f5, c.f3, c.e2, c.c2, c.b3])
+}
+
+pub fn knight_cannot_move_test() {
+  let game =
+    c.Game(
+      board: dict.from_list([
+        #(c.a1, #(c.Knight, c.White)),
+        #(c.b3, #(c.Pawn, c.White)),
+        #(c.c2, #(c.Pawn, c.White)),
+      ]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+
+  let assert Ok(moves) = c.show_moves(game, c.a1)
+  assert moves == set.new()
+}

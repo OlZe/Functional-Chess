@@ -1,5 +1,6 @@
 import gleam/dict
 import gleam/int
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order
 import gleam/result
@@ -118,8 +119,8 @@ pub fn show_moves(
           case selected_figure {
             Pawn -> Ok(get_moves_for_pawn(game.board, coord, moving_player))
             Bishop -> todo
-            King -> todo
-            Knight -> todo
+            King -> Ok(get_moves_for_king(game.board, coord, moving_player))
+            Knight -> Ok(get_moves_for_knight(game.board, coord, moving_player))
             Queen -> todo
             Rook -> todo
           }
@@ -194,10 +195,81 @@ fn get_moves_for_pawn(
   all_moves
 }
 
+fn get_moves_for_king(
+  board: Board,
+  coord: Coordinate,
+  attacker: Player,
+) -> set.Set(Coordinate) {
+  // All possible coordinate offsets
+  [#(0, 1), #(1, 1), #(1, 0), #(1, -1), #(0, -1), #(-1, -1), #(-1, 0), #(-1, 1)]
+  // Map to real coordinates
+  |> list.map(fn(offset) {
+    let #(offset_file, offset_row) = offset
+    move_coord(coord, offset_file, offset_row)
+  })
+  // Filter coordinates out of bounds
+  |> option.values
+  // Filter coordinates that are valid moves
+  |> list.filter(fn(capturee_coord) {
+    case dict.get(board, capturee_coord) {
+      // Square empty, allow
+      Error(_) -> True
+      Ok(#(_, capturee_owner)) ->
+        case capturee_owner == attacker {
+          // Square blocked by friendly figure, disallow
+          True -> False
+          // Square blocked opposing figure, allow
+          False -> True
+        }
+    }
+  })
+  |> set.from_list()
+}
+
+fn get_moves_for_knight(
+  board: Board,
+  coord: Coordinate,
+  attacker: Player,
+) -> set.Set(Coordinate) {
+  // All possible coordinate offsets
+  [
+    #(1, 2),
+    #(2, 1),
+    #(2, -1),
+    #(1, -2),
+    #(-1, -2),
+    #(-2, -1),
+    #(-2, 1),
+    #(-1, 2),
+  ]
+  // Map to real coordinates
+  |> list.map(fn(offset) {
+    let #(offset_file, offset_row) = offset
+    move_coord(coord, offset_file, offset_row)
+  })
+  // Filter coordinates out of bounds
+  |> option.values
+  // Filter coordinates that are valid moves
+  |> list.filter(fn(capturee_coord) {
+    case dict.get(board, capturee_coord) {
+      // Square empty, allow
+      Error(_) -> True
+      Ok(#(_, capturee_owner)) ->
+        case capturee_owner == attacker {
+          // Square blocked by friendly figure, disallow
+          True -> False
+          // Square blocked opposing figure, allow
+          False -> True
+        }
+    }
+  })
+  |> set.from_list()
+}
+
 fn move_coord(
   coord: Coordinate,
-  by_file: Int,
-  by_row: Int,
+  by_file by_file: Int,
+  by_row by_row: Int,
 ) -> Option(Coordinate) {
   use new_file <- option.then(move_file(coord.0, by_file))
   use new_row <- option.then(move_row(coord.1, by_row))
