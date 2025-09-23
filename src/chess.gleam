@@ -1,6 +1,5 @@
 import gleam/dict
 import gleam/int
-import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order
 import gleam/result
@@ -98,23 +97,30 @@ pub fn new_game() -> Game {
   Game(board:, state: WaitingOnNextMove(White))
 }
 
+pub type GetMovesError {
+  GameAlreadyOver
+  SelectedFigureDoesntExist
+  SelectedFigureIsNotFriendly
+}
+
 /// Return a list of possible moves from a selected figure
-/// Returns Error(Nil) if selected_figure is not on the board or not the next_player's turn.
 pub fn get_moves(
   game: Game,
   figure coord: Coordinate,
-) -> Result(set.Set(Coordinate), Nil) {
+) -> Result(set.Set(Coordinate), GetMovesError) {
   case game.state {
-    Checkmate(_) -> Error(Nil)
-    Forfeit(_) -> Error(Nil)
-    Stalemate -> Error(Nil)
+    Checkmate(_) -> Error(GameAlreadyOver)
+    Forfeit(_) -> Error(GameAlreadyOver)
+    Stalemate -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
-      use #(selected_figure, selected_figure_owner) <- result.try(dict.get(
-        game.board,
-        coord,
-      ))
+      let selected_figure =
+        dict.get(game.board, coord)
+        |> result.map_error(fn(_) { SelectedFigureDoesntExist })
+      use #(selected_figure, selected_figure_owner) <- result.try(
+        selected_figure,
+      )
       case selected_figure_owner == moving_player {
-        False -> Error(Nil)
+        False -> Error(SelectedFigureIsNotFriendly)
         True -> {
           case selected_figure {
             Pawn -> Ok(get_moves_for_pawn(game.board, coord, moving_player))

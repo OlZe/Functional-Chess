@@ -308,3 +308,45 @@ pub fn queen_cannot_move_test() {
   let assert Ok(moves) = c.get_moves(game, c.a1)
   assert moves == set.from_list([c.b1])
 }
+
+pub fn get_moves_errors_test() {
+  // Game is checkmate
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.a1, #(c.King, c.White))]),
+      state: c.Checkmate(c.White),
+    )
+  assert c.get_moves(game, c.a1) == Error(c.GameAlreadyOver)
+
+  // Game is forfeit
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.a1, #(c.King, c.White))]),
+      state: c.Forfeit(c.White),
+    )
+  assert c.get_moves(game, c.a1) == Error(c.GameAlreadyOver)
+
+  // Game is stalemate
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.a1, #(c.King, c.White))]),
+      state: c.Stalemate,
+    )
+  assert c.get_moves(game, c.a1) == Error(c.GameAlreadyOver)
+
+  // Select figure which doesn't exist
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.a1, #(c.King, c.White))]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+  assert c.get_moves(game, c.b2) == Error(c.SelectedFigureDoesntExist)
+
+  // Select figure which isn't friendly
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.a1, #(c.King, c.White))]),
+      state: c.WaitingOnNextMove(c.Black),
+    )
+  assert c.get_moves(game, c.a1) == Error(c.SelectedFigureIsNotFriendly)
+}
