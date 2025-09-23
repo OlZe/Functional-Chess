@@ -100,7 +100,7 @@ pub fn new_game() -> Game {
 
 /// Return a list of possible moves from a selected figure
 /// Returns Error(Nil) if selected_figure is not on the board or not the next_player's turn.
-pub fn show_moves(
+pub fn get_moves(
   game: Game,
   figure coord: Coordinate,
 ) -> Result(set.Set(Coordinate), Nil) {
@@ -118,11 +118,11 @@ pub fn show_moves(
         True -> {
           case selected_figure {
             Pawn -> Ok(get_moves_for_pawn(game.board, coord, moving_player))
-            Bishop -> todo
+            Bishop -> Ok(get_moves_for_bishop(game.board, coord, moving_player))
             King -> Ok(get_moves_for_king(game.board, coord, moving_player))
             Knight -> Ok(get_moves_for_knight(game.board, coord, moving_player))
-            Queen -> todo
-            Rook -> todo
+            Queen -> Ok(get_moves_for_queen(game.board, coord, moving_player))
+            Rook -> Ok(get_moves_for_rook(game.board, coord, moving_player))
           }
         }
       }
@@ -230,8 +230,48 @@ fn get_moves_for_knight(
   |> set.fold(set.new(), set.union)
 }
 
+fn get_moves_for_rook(
+  board: Board,
+  coord: Coordinate,
+  attacker: Player,
+) -> set.Set(Coordinate) {
+  [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
+  |> set.from_list()
+  |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
+  |> set.map(evaluate_move_description(board, _))
+  // Flatten
+  |> set.fold(set.new(), set.union)
+}
+
+fn get_moves_for_bishop(
+  board: Board,
+  coord: Coordinate,
+  attacker: Player,
+) -> set.Set(Coordinate) {
+  [#(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
+  |> set.from_list()
+  |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
+  |> set.map(evaluate_move_description(board, _))
+  // Flatten
+  |> set.fold(set.new(), set.union)
+}
+
+fn get_moves_for_queen(
+  board: Board,
+  coord: Coordinate,
+  attacker: Player,
+) -> set.Set(Coordinate) {
+  [#(0, 1), #(1, 0), #(0, -1), #(-1, 0), #(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
+  |> set.from_list()
+  |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
+  |> set.map(evaluate_move_description(board, _))
+  // Flatten
+  |> set.fold(set.new(), set.union)
+}
+
 type MoveDescription {
   JumpTo(origin: Coordinate, offset: #(Int, Int), attacker: Player)
+  LineOfSight(origin: Coordinate, direction: #(Int, Int), attacker: Player)
 }
 
 fn evaluate_move_description(
@@ -256,6 +296,45 @@ fn evaluate_move_description(
                 // Square blocked by friendly, disallow
                 True -> set.new()
               }
+          }
+        }
+      }
+    }
+    LineOfSight(origin, direction, attacker) -> {
+      evaluate_line_of_sight_loop(board, origin, direction, attacker, set.new())
+    }
+  }
+}
+
+fn evaluate_line_of_sight_loop(
+  board: Board,
+  origin: Coordinate,
+  direction: #(Int, Int),
+  attacker: Player,
+  accumulator: set.Set(Coordinate),
+) -> set.Set(Coordinate) {
+  let next_coord = move_coord(origin, direction.0, direction.1)
+  case next_coord {
+    // Out of bounds, stop exploring
+    None -> accumulator
+    Some(next_coord) -> {
+      case dict.get(board, next_coord) {
+        // Nothing there: Add next_coord to accumulator and keep exploring
+        Error(_) ->
+          evaluate_line_of_sight_loop(
+            board,
+            next_coord,
+            direction,
+            attacker,
+            set.insert(accumulator, next_coord),
+          )
+        // Blocked by figure
+        Ok(#(_, capturee_owner)) -> {
+          case capturee_owner == attacker {
+            // Blocked by friendly figure, stop exploring
+            True -> accumulator
+            // Blocked by opposing figure, stop exploring and its coord to accumulator to allow capture
+            False -> set.insert(accumulator, next_coord)
           }
         }
       }
