@@ -53,16 +53,16 @@ pub fn pawn_can_move_as_white_test() {
   let game =
     c.Game(
       board: dict.from_list([
-        #(c.b1, #(c.Pawn, c.White)),
-        #(c.a2, #(c.Pawn, c.Black)),
-        #(c.c2, #(c.Pawn, c.Black)),
+        #(c.b2, #(c.Pawn, c.White)),
+        #(c.a3, #(c.Pawn, c.Black)),
+        #(c.c3, #(c.Pawn, c.Black)),
       ]),
       state: c.WaitingOnNextMove(c.White),
     )
 
-  let assert Ok(moves) = c.get_moves(game, c.b1)
+  let assert Ok(moves) = c.get_moves(game, c.b2)
 
-  assert moves == set.from_list([c.a2, c.b2, c.c2])
+  assert moves == set.from_list([c.a3, c.b3, c.c3, c.b4])
 }
 
 pub fn pawn_cannot_move_as_white_test() {
@@ -85,15 +85,15 @@ pub fn pawn_can_move_as_black_test() {
   let game =
     c.Game(
       board: dict.from_list([
-        #(c.b8, #(c.Pawn, c.Black)),
-        #(c.a7, #(c.Pawn, c.White)),
-        #(c.c7, #(c.Pawn, c.White)),
+        #(c.b7, #(c.Pawn, c.Black)),
+        #(c.a6, #(c.Pawn, c.White)),
+        #(c.c6, #(c.Pawn, c.White)),
       ]),
       state: c.WaitingOnNextMove(c.Black),
     )
 
-  let assert Ok(moves) = c.get_moves(game, c.b8)
-  assert moves == set.from_list([c.a7, c.b7, c.c7])
+  let assert Ok(moves) = c.get_moves(game, c.b7)
+  assert moves == set.from_list([c.a6, c.b6, c.c6, c.b5])
 }
 
 pub fn pawn_cannot_move_as_black_test() {
@@ -108,6 +108,46 @@ pub fn pawn_cannot_move_as_black_test() {
     )
 
   let assert Ok(moves) = c.get_moves(game, c.b8)
+  assert moves == set.new()
+}
+
+pub fn pawn_cannot_doublemove() {
+  // Not on starting position
+  let game =
+    c.Game(
+      board: dict.from_list([
+        #(c.a3, #(c.Pawn, c.White)),
+      ]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+
+  let assert Ok(moves) = c.get_moves(game, c.a3)
+  assert moves == set.new()
+
+  // Square directly in front blocked
+  let game =
+    c.Game(
+      board: dict.from_list([
+        #(c.a3, #(c.Pawn, c.White)),
+        #(c.a4, #(c.Pawn, c.White)),
+      ]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+
+  let assert Ok(moves) = c.get_moves(game, c.a3)
+  assert moves == set.new()
+
+  // Destination square blocked
+  let game =
+    c.Game(
+      board: dict.from_list([
+        #(c.a3, #(c.Pawn, c.White)),
+        #(c.a5, #(c.Pawn, c.White)),
+      ]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+
+  let assert Ok(moves) = c.get_moves(game, c.a3)
   assert moves == set.new()
 }
 

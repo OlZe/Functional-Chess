@@ -1,3 +1,4 @@
+import gleam/bool
 import gleam/dict
 import gleam/int
 import gleam/option.{type Option, None, Some}
@@ -136,7 +137,6 @@ pub fn get_moves(
   }
 }
 
-/// Return list of all possible moves with a pawn on coord owned by owner
 fn get_moves_for_pawn(
   board: Board,
   coord: Coordinate,
@@ -158,6 +158,23 @@ fn get_moves_for_pawn(
         Ok(_) -> None
       }
     })
+
+  // Check move up-up
+  let up_up = {
+    // If up is disallowed, then disallow up_up
+    use _ <- option.then(up)
+    let to_row = case attacker {
+      White -> Row4
+      Black -> Row5
+    }
+    use up_up <- option.then(move_coord(coord, 0, { 2 * up_direction }))
+    // if 'up-up' doesn't go to 'to_row' then the pawn has moved and is disqualified
+    use <- bool.guard(when: up_up.1 != to_row, return: None)
+    case dict.get(board, up_up) {
+      Error(_) -> Some(up_up)
+      Ok(_) -> None
+    }
+  }
 
   // Check capture up-left
   let up_left = move_coord(coord, -1, up_direction)
@@ -194,7 +211,7 @@ fn get_moves_for_pawn(
     })
 
   let all_moves =
-    [up, up_left, up_right]
+    [up, up_up, up_left, up_right]
     |> option.values
     |> set.from_list
 
