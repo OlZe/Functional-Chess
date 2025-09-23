@@ -200,30 +200,12 @@ fn get_moves_for_king(
   coord: Coordinate,
   attacker: Player,
 ) -> set.Set(Coordinate) {
-  // All possible coordinate offsets
   [#(0, 1), #(1, 1), #(1, 0), #(1, -1), #(0, -1), #(-1, -1), #(-1, 0), #(-1, 1)]
-  // Map to real coordinates
-  |> list.map(fn(offset) {
-    let #(offset_file, offset_row) = offset
-    move_coord(coord, offset_file, offset_row)
-  })
-  // Filter coordinates out of bounds
-  |> option.values
-  // Filter coordinates that are valid moves
-  |> list.filter(fn(capturee_coord) {
-    case dict.get(board, capturee_coord) {
-      // Square empty, allow
-      Error(_) -> True
-      Ok(#(_, capturee_owner)) ->
-        case capturee_owner == attacker {
-          // Square blocked by friendly figure, disallow
-          True -> False
-          // Square blocked opposing figure, allow
-          False -> True
-        }
-    }
-  })
   |> set.from_list()
+  |> set.map(JumpTo(origin: coord, offset: _, attacker:))
+  |> set.map(evaluate_move_description(board, _))
+  // Flatten
+  |> set.fold(set.new(), set.union)
 }
 
 fn get_moves_for_knight(
@@ -231,7 +213,6 @@ fn get_moves_for_knight(
   coord: Coordinate,
   attacker: Player,
 ) -> set.Set(Coordinate) {
-  // All possible coordinate offsets
   [
     #(1, 2),
     #(2, 1),
@@ -242,28 +223,44 @@ fn get_moves_for_knight(
     #(-2, 1),
     #(-1, 2),
   ]
-  // Map to real coordinates
-  |> list.map(fn(offset) {
-    let #(offset_file, offset_row) = offset
-    move_coord(coord, offset_file, offset_row)
-  })
-  // Filter coordinates out of bounds
-  |> option.values
-  // Filter coordinates that are valid moves
-  |> list.filter(fn(capturee_coord) {
-    case dict.get(board, capturee_coord) {
-      // Square empty, allow
-      Error(_) -> True
-      Ok(#(_, capturee_owner)) ->
-        case capturee_owner == attacker {
-          // Square blocked by friendly figure, disallow
-          True -> False
-          // Square blocked opposing figure, allow
-          False -> True
-        }
-    }
-  })
   |> set.from_list()
+  |> set.map(JumpTo(origin: coord, offset: _, attacker:))
+  |> set.map(evaluate_move_description(board, _))
+  // Flatten
+  |> set.fold(set.new(), set.union)
+}
+
+type MoveDescription {
+  JumpTo(origin: Coordinate, offset: #(Int, Int), attacker: Player)
+}
+
+fn evaluate_move_description(
+  board: Board,
+  move_description: MoveDescription,
+) -> set.Set(Coordinate) {
+  case move_description {
+    JumpTo(origin, #(offset_file, offset_row), attacker) -> {
+      let destination_coord = move_coord(origin, offset_file, offset_row)
+      case destination_coord {
+        // Coordinate out of bounds, disallow
+        None -> set.new()
+        Some(destination_coord) -> {
+          let capturee = dict.get(board, destination_coord)
+          case capturee {
+            // Square free, allow
+            Error(_) -> set.from_list([destination_coord])
+            Ok(#(_, capturee_owner)) ->
+              case capturee_owner == attacker {
+                // Square blocked by enemy, allow
+                False -> set.from_list([destination_coord])
+                // Square blocked by friendly, disallow
+                True -> set.new()
+              }
+          }
+        }
+      }
+    }
+  }
 }
 
 fn move_coord(
