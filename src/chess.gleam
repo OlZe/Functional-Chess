@@ -1,6 +1,7 @@
 import gleam/bool
 import gleam/dict
 import gleam/int
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order
 import gleam/result
@@ -34,33 +35,35 @@ fn get_figure(board: Board, coord: Coordinate) -> Option(#(Figure, Player)) {
   }
 }
 
-fn move_figure(
-  board: Board,
-  from: Coordinate,
-  to: Coordinate,
-) -> Result(Board, Nil) {
+/// Peforms no checking weathter from and to are legal moves
+/// If from is pointing to an empty square, then nothing happens
+fn move_figure(board: Board, from: Coordinate, to: Coordinate) -> Board {
   case board {
     Board(white_king:, black_king:, other_figures:) if white_king == from ->
-      Ok(Board(
+      Board(
         white_king: to,
         black_king:,
         other_figures: dict.delete(other_figures, to),
-      ))
+      )
     Board(white_king:, black_king:, other_figures:) if black_king == from ->
-      Ok(Board(
+      Board(
         white_king:,
         black_king: to,
         other_figures: dict.delete(other_figures, to),
-      ))
+      )
     Board(white_king:, black_king:, other_figures:) -> {
-      use moving_figure <- result.try(dict.get(other_figures, from))
-      Ok(Board(
-        white_king:,
-        black_king:,
-        other_figures: other_figures
-          |> dict.delete(from)
-          |> dict.insert(from, moving_figure),
-      ))
+      let moving_figure = dict.get(other_figures, from)
+      case moving_figure {
+        Error(_) -> board
+        Ok(moving_figure) ->
+          Board(
+            white_king:,
+            black_king:,
+            other_figures: other_figures
+              |> dict.delete(from)
+              |> dict.insert(to, moving_figure),
+          )
+      }
     }
   }
 }
@@ -164,15 +167,12 @@ pub fn player_move(
     Forfeit(_) -> Error(GameAlreadyOver)
     Stalemate -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
-      use possible_moves <- result.try(get_moves(game, from))
+      use possible_moves <- result.try(get_legal_moves(game, from))
       use <- bool.guard(
         when: !set.contains(possible_moves, to),
         return: Error(SelectedFigureCantGoThere),
       )
-      use new_board <- result.try(
-        move_figure(game.board, from, to)
-        |> result.map_error(fn(_) { SelectedFigureDoesntExist }),
-      )
+      let new_board = move_figure(game.board, from, to)
       let other_player = case moving_player {
         Black -> White
         White -> Black
@@ -183,7 +183,7 @@ pub fn player_move(
 }
 
 /// Return a list of possible moves from a selected figure
-pub fn get_moves(
+pub fn get_legal_moves(
   game: Game,
   figure coord: Coordinate,
 ) -> Result(set.Set(Coordinate), MoveError) {
@@ -192,27 +192,84 @@ pub fn get_moves(
     Forfeit(_) -> Error(GameAlreadyOver)
     Stalemate -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
-      let selected_figure =
-        get_figure(game.board, coord)
-        |> option.to_result(SelectedFigureDoesntExist)
-      use #(selected_figure, selected_figure_owner) <- result.try(
-        selected_figure,
+      use moves <- result.try(get_moves(game.board, coord, moving_player))
+
+      // If moving_player is not in check, then return all moves
+      use <- bool.guard(
+        when: !is_in_check(game.board, moving_player),
+        return: Ok(moves),
       )
-      case selected_figure_owner == moving_player {
-        False -> Error(SelectedFigureIsNotFriendly)
-        True -> {
-          case selected_figure {
-            Pawn -> Ok(get_moves_for_pawn(game.board, coord, moving_player))
-            Bishop -> Ok(get_moves_for_bishop(game.board, coord, moving_player))
-            King -> Ok(get_moves_for_king(game.board, coord, moving_player))
-            Knight -> Ok(get_moves_for_knight(game.board, coord, moving_player))
-            Queen -> Ok(get_moves_for_queen(game.board, coord, moving_player))
-            Rook -> Ok(get_moves_for_rook(game.board, coord, moving_player))
-          }
-        }
-      }
+
+      // moving_player is in check, only allow moves that get him out of check
+      moves
+      |> set.filter(fn(to) {
+        let from = coord
+        // Simulate move, then check if moving_player is still in check
+        let future_board = move_figure(game.board, from, to)
+        !is_in_check(future_board, moving_player)
+      })
+      |> Ok
     }
   }
+}
+
+/// Finds all moves for a given figure
+/// Ignores if the moving_player's king is in check
+fn get_moves(
+  board: Board,
+  coord: Coordinate,
+  moving_player: Player,
+) -> Result(set.Set(Coordinate), MoveError) {
+  let selected_figure =
+    get_figure(board, coord)
+    |> option.to_result(SelectedFigureDoesntExist)
+  use #(selected_figure, selected_figure_owner) <- result.try(selected_figure)
+  use <- bool.guard(
+    when: selected_figure_owner != moving_player,
+    return: Error(SelectedFigureIsNotFriendly),
+  )
+
+  let moves = case selected_figure {
+    Pawn -> get_moves_for_pawn(board, coord, moving_player)
+    Bishop -> get_moves_for_bishop(board, coord, moving_player)
+    King -> get_moves_for_king(board, coord, moving_player)
+    Knight -> get_moves_for_knight(board, coord, moving_player)
+    Queen -> get_moves_for_queen(board, coord, moving_player)
+    Rook -> get_moves_for_rook(board, coord, moving_player)
+  }
+
+  Ok(moves)
+}
+
+/// Determines wether the attackee is in check
+fn is_in_check(board: Board, player attackee: Player) -> Bool {
+  // Check if attackee is in check by requesting all moves of all
+  // attacker pieces and seeing if any of their moves hit the king
+
+  let attackee_king = case attackee {
+    White -> board.white_king
+    Black -> board.black_king
+  }
+  let attacker = case attackee {
+    White -> Black
+    Black -> White
+  }
+
+  // A king can never be checked by the opponent's king,
+  // thus iterating only over board.other_figures is sufficient
+  board.other_figures
+  |> dict.to_list
+  // Find all pieces belonging to attacker
+  |> list.filter(fn(coord_and_figure) { coord_and_figure.1.1 == attacker })
+  |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
+  // Get all attacker moves
+  |> list.flat_map(fn(coord) {
+    get_moves(board, coord, attacker)
+    |> result.map(set.to_list)
+    |> result.unwrap([])
+  })
+  // Check if any attacker move goes to attackee king
+  |> list.contains(attackee_king)
 }
 
 fn get_moves_for_pawn(

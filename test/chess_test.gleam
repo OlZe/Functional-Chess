@@ -61,7 +61,7 @@ pub fn pawn_can_move_as_white_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.b2)
+  let assert Ok(moves) = c.get_legal_moves(game, c.b2)
   assert moves == set.from_list([c.a3, c.b3, c.c3, c.b4])
 }
 
@@ -77,7 +77,7 @@ pub fn pawn_cannot_move_as_white_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.b1)
+  let assert Ok(moves) = c.get_legal_moves(game, c.b1)
   assert moves == set.new()
 }
 
@@ -93,7 +93,7 @@ pub fn pawn_can_move_as_black_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.Black))
-  let assert Ok(moves) = c.get_moves(game, c.b7)
+  let assert Ok(moves) = c.get_legal_moves(game, c.b7)
   assert moves == set.from_list([c.a6, c.b6, c.c6, c.b5])
 }
 
@@ -109,7 +109,7 @@ pub fn pawn_cannot_move_as_black_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.Black))
-  let assert Ok(moves) = c.get_moves(game, c.b8)
+  let assert Ok(moves) = c.get_legal_moves(game, c.b8)
   assert moves == set.new()
 }
 
@@ -124,7 +124,7 @@ pub fn pawn_cannot_doublemove() {
       ]),
     )
   let game = c.Game(board1, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.a3)
+  let assert Ok(moves) = c.get_legal_moves(game, c.a3)
   assert moves == set.new()
 
   // Square directly in front blocked
@@ -138,7 +138,7 @@ pub fn pawn_cannot_doublemove() {
       ]),
     )
   let game = c.Game(board2, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.a3)
+  let assert Ok(moves) = c.get_legal_moves(game, c.a3)
   assert moves == set.new()
 
   // Destination square blocked
@@ -152,7 +152,7 @@ pub fn pawn_cannot_doublemove() {
       ]),
     )
   let game = c.Game(board3, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.a3)
+  let assert Ok(moves) = c.get_legal_moves(game, c.a3)
   assert moves == set.new()
 }
 
@@ -167,7 +167,7 @@ pub fn king_can_move_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.b2)
+  let assert Ok(moves) = c.get_legal_moves(game, c.b2)
   assert moves
     == set.from_list([c.b3, c.c3, c.c2, c.c1, c.b1, c.a1, c.a2, c.a3])
 }
@@ -184,7 +184,7 @@ pub fn king_cannot_move_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.a1)
+  let assert Ok(moves) = c.get_legal_moves(game, c.a1)
   assert moves == set.new()
 }
 
@@ -196,7 +196,7 @@ pub fn knight_can_move_test() {
       other_figures: dict.from_list([#(c.d4, #(c.Knight, c.White))]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.d4)
+  let assert Ok(moves) = c.get_legal_moves(game, c.d4)
   assert moves
     == set.from_list([c.b5, c.c6, c.e6, c.f5, c.f3, c.e2, c.c2, c.b3])
 }
@@ -213,7 +213,7 @@ pub fn knight_cannot_move_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.a1)
+  let assert Ok(moves) = c.get_legal_moves(game, c.a1)
   assert moves == set.new()
 }
 
@@ -225,7 +225,7 @@ pub fn rook_can_move_test() {
       other_figures: dict.from_list([#(c.d4, #(c.Rook, c.White))]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.d4)
+  let assert Ok(moves) = c.get_legal_moves(game, c.d4)
   assert moves
     == set.from_list([
       c.d5,
@@ -257,7 +257,7 @@ pub fn rook_cannot_move_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.a1)
+  let assert Ok(moves) = c.get_legal_moves(game, c.a1)
   assert moves == set.from_list([c.a2, c.b1, c.c1])
 }
 
@@ -269,7 +269,7 @@ pub fn bishop_can_move_test() {
       other_figures: dict.from_list([#(c.d4, #(c.Bishop, c.White))]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.d4)
+  let assert Ok(moves) = c.get_legal_moves(game, c.d4)
   assert moves
     == set.from_list([
       c.e5,
@@ -300,7 +300,7 @@ pub fn bishop_cannot_move_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.c1)
+  let assert Ok(moves) = c.get_legal_moves(game, c.c1)
   assert moves == set.from_list([c.b2, c.d2, c.e3])
 }
 
@@ -312,7 +312,7 @@ pub fn queen_can_move_test() {
       other_figures: dict.from_list([#(c.d4, #(c.Queen, c.White))]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.d4)
+  let assert Ok(moves) = c.get_legal_moves(game, c.d4)
   assert moves
     == set.from_list([
       c.d5,
@@ -358,8 +358,30 @@ pub fn queen_cannot_move_test() {
       ]),
     )
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  let assert Ok(moves) = c.get_moves(game, c.a1)
+  let assert Ok(moves) = c.get_legal_moves(game, c.a1)
   assert moves == set.from_list([c.b1])
+}
+
+/// Tests that get_moves() only returns legal moves when the player is in check.
+/// A legal move has to get the player out of check
+pub fn get_moves_doesnt_stay_in_check_test() {
+  let board =
+    c.Board(
+      // White king is in check by black rook
+      white_king: c.a1,
+      black_king: c.e8,
+      other_figures: dict.from_list([
+        #(c.a8, #(c.Rook, c.Black)),
+        #(c.b2, #(c.Rook, c.White)),
+      ]),
+    )
+  let game = c.Game(board, c.WaitingOnNextMove(c.White))
+
+  // King can move out of check
+  assert c.get_legal_moves(game, c.a1) == Ok(set.from_list([c.b1]))
+
+  // Rook can block check
+  assert c.get_legal_moves(game, c.b2) == Ok(set.from_list([c.a2]))
 }
 
 pub fn get_moves_errors_test() {
@@ -367,23 +389,23 @@ pub fn get_moves_errors_test() {
   let board =
     c.Board(white_king: c.a1, black_king: c.e8, other_figures: dict.new())
   let game = c.Game(board, c.Checkmate(c.White))
-  assert c.get_moves(game, c.a1) == Error(c.GameAlreadyOver)
+  assert c.get_legal_moves(game, c.a1) == Error(c.GameAlreadyOver)
 
   // Game is forfeit
   let game = c.Game(board, c.Forfeit(c.White))
-  assert c.get_moves(game, c.a1) == Error(c.GameAlreadyOver)
+  assert c.get_legal_moves(game, c.a1) == Error(c.GameAlreadyOver)
 
   // Game is stalemate
   let game = c.Game(board, c.Stalemate)
-  assert c.get_moves(game, c.a1) == Error(c.GameAlreadyOver)
+  assert c.get_legal_moves(game, c.a1) == Error(c.GameAlreadyOver)
 
   // Select figure which doesn't exist
   let game = c.Game(board, c.WaitingOnNextMove(c.White))
-  assert c.get_moves(game, c.b2) == Error(c.SelectedFigureDoesntExist)
+  assert c.get_legal_moves(game, c.b2) == Error(c.SelectedFigureDoesntExist)
 
   // Select figure which isn't friendly
   let game = c.Game(board, c.WaitingOnNextMove(c.Black))
-  assert c.get_moves(game, c.a1) == Error(c.SelectedFigureIsNotFriendly)
+  assert c.get_legal_moves(game, c.a1) == Error(c.SelectedFigureIsNotFriendly)
 }
 
 pub fn player_move_test() {
