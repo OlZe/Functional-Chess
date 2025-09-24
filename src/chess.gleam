@@ -17,8 +17,53 @@ pub type GameState {
   WaitingOnNextMove(next_player: Player)
 }
 
-pub type Board =
-  dict.Dict(Coordinate, #(Figure, Player))
+pub type Board {
+  Board(
+    white_king: Coordinate,
+    black_king: Coordinate,
+    other_figures: dict.Dict(Coordinate, #(Figure, Player)),
+  )
+}
+
+fn get_figure(board: Board, coord: Coordinate) -> Option(#(Figure, Player)) {
+  case board {
+    Board(white_king, _, _) if white_king == coord -> Some(#(King, White))
+    Board(_, black_king, _) if black_king == coord -> Some(#(King, Black))
+    Board(_, _, other_figures) ->
+      other_figures |> dict.get(coord) |> option.from_result()
+  }
+}
+
+fn move_figure(
+  board: Board,
+  from: Coordinate,
+  to: Coordinate,
+) -> Result(Board, Nil) {
+  case board {
+    Board(white_king:, black_king:, other_figures:) if white_king == from ->
+      Ok(Board(
+        white_king: to,
+        black_king:,
+        other_figures: dict.delete(other_figures, to),
+      ))
+    Board(white_king:, black_king:, other_figures:) if black_king == from ->
+      Ok(Board(
+        white_king:,
+        black_king: to,
+        other_figures: dict.delete(other_figures, to),
+      ))
+    Board(white_king:, black_king:, other_figures:) -> {
+      use moving_figure <- result.try(dict.get(other_figures, from))
+      Ok(Board(
+        white_king:,
+        black_king:,
+        other_figures: other_figures
+          |> dict.delete(from)
+          |> dict.insert(from, moving_figure),
+      ))
+    }
+  }
+}
 
 pub type Coordinate =
   #(File, Row)
@@ -61,40 +106,43 @@ pub type Row {
 
 pub fn new_game() -> Game {
   let board =
-    dict.from_list([
-      #(a1, #(Rook, White)),
-      #(b1, #(Knight, White)),
-      #(c1, #(Bishop, White)),
-      #(d1, #(Queen, White)),
-      #(e1, #(King, White)),
-      #(f1, #(Bishop, White)),
-      #(g1, #(Knight, White)),
-      #(h1, #(Rook, White)),
-      #(a2, #(Pawn, White)),
-      #(b2, #(Pawn, White)),
-      #(c2, #(Pawn, White)),
-      #(d2, #(Pawn, White)),
-      #(e2, #(Pawn, White)),
-      #(f2, #(Pawn, White)),
-      #(g2, #(Pawn, White)),
-      #(h2, #(Pawn, White)),
-      #(a8, #(Rook, Black)),
-      #(b8, #(Knight, Black)),
-      #(c8, #(Bishop, Black)),
-      #(d8, #(Queen, Black)),
-      #(e8, #(King, Black)),
-      #(f8, #(Bishop, Black)),
-      #(g8, #(Knight, Black)),
-      #(h8, #(Rook, Black)),
-      #(a7, #(Pawn, Black)),
-      #(b7, #(Pawn, Black)),
-      #(c7, #(Pawn, Black)),
-      #(d7, #(Pawn, Black)),
-      #(e7, #(Pawn, Black)),
-      #(f7, #(Pawn, Black)),
-      #(g7, #(Pawn, Black)),
-      #(h7, #(Pawn, Black)),
-    ])
+    Board(
+      white_king: e1,
+      black_king: e8,
+      other_figures: dict.from_list([
+        #(a1, #(Rook, White)),
+        #(b1, #(Knight, White)),
+        #(c1, #(Bishop, White)),
+        #(d1, #(Queen, White)),
+        #(f1, #(Bishop, White)),
+        #(g1, #(Knight, White)),
+        #(h1, #(Rook, White)),
+        #(a2, #(Pawn, White)),
+        #(b2, #(Pawn, White)),
+        #(c2, #(Pawn, White)),
+        #(d2, #(Pawn, White)),
+        #(e2, #(Pawn, White)),
+        #(f2, #(Pawn, White)),
+        #(g2, #(Pawn, White)),
+        #(h2, #(Pawn, White)),
+        #(a8, #(Rook, Black)),
+        #(b8, #(Knight, Black)),
+        #(c8, #(Bishop, Black)),
+        #(d8, #(Queen, Black)),
+        #(f8, #(Bishop, Black)),
+        #(g8, #(Knight, Black)),
+        #(h8, #(Rook, Black)),
+        #(a7, #(Pawn, Black)),
+        #(b7, #(Pawn, Black)),
+        #(c7, #(Pawn, Black)),
+        #(d7, #(Pawn, Black)),
+        #(e7, #(Pawn, Black)),
+        #(f7, #(Pawn, Black)),
+        #(g7, #(Pawn, Black)),
+        #(h7, #(Pawn, Black)),
+      ]),
+    )
+
   Game(board:, state: WaitingOnNextMove(White))
 }
 
@@ -116,19 +164,15 @@ pub fn player_move(
     Forfeit(_) -> Error(GameAlreadyOver)
     Stalemate -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
-      let figure =
-        dict.get(game.board, from)
-        |> result.map_error(fn(_) { SelectedFigureDoesntExist })
-      use figure <- result.try(figure)
       use possible_moves <- result.try(get_moves(game, from))
       use <- bool.guard(
         when: !set.contains(possible_moves, to),
         return: Error(SelectedFigureCantGoThere),
       )
-      let new_board =
-        game.board
-        |> dict.delete(from)
-        |> dict.insert(to, figure)
+      use new_board <- result.try(
+        move_figure(game.board, from, to)
+        |> result.map_error(fn(_) { SelectedFigureDoesntExist }),
+      )
       let other_player = case moving_player {
         Black -> White
         White -> Black
@@ -149,8 +193,8 @@ pub fn get_moves(
     Stalemate -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
       let selected_figure =
-        dict.get(game.board, coord)
-        |> result.map_error(fn(_) { SelectedFigureDoesntExist })
+        get_figure(game.board, coord)
+        |> option.to_result(SelectedFigureDoesntExist)
       use #(selected_figure, selected_figure_owner) <- result.try(
         selected_figure,
       )
@@ -185,11 +229,11 @@ fn get_moves_for_pawn(
   let up = move_coord(coord, 0, up_direction)
   let up =
     option.then(up, fn(up) {
-      case dict.get(board, up) {
+      case get_figure(board, up) {
         // Square empty, allow
-        Error(_) -> Some(up)
+        None -> Some(up)
         // Square blocked, disallow
-        Ok(_) -> None
+        Some(_) -> None
       }
     })
 
@@ -204,9 +248,9 @@ fn get_moves_for_pawn(
     use up_up <- option.then(move_coord(coord, 0, { 2 * up_direction }))
     // if 'up-up' doesn't go to 'to_row' then the pawn has moved and is disqualified
     use <- bool.guard(when: up_up.1 != to_row, return: None)
-    case dict.get(board, up_up) {
-      Error(_) -> Some(up_up)
-      Ok(_) -> None
+    case get_figure(board, up_up) {
+      None -> Some(up_up)
+      Some(_) -> None
     }
   }
 
@@ -214,10 +258,10 @@ fn get_moves_for_pawn(
   let up_left = move_coord(coord, -1, up_direction)
   let up_left =
     option.then(up_left, fn(up_left) {
-      case dict.get(board, up_left) {
+      case get_figure(board, up_left) {
         // Square empty, disallow
-        Error(_) -> None
-        Ok(#(_, other_figure_owner)) ->
+        None -> None
+        Some(#(_, other_figure_owner)) ->
           case other_figure_owner == attacker {
             // Square blocked by friendly piece, disallow
             True -> None
@@ -231,10 +275,10 @@ fn get_moves_for_pawn(
   let up_right = move_coord(coord, 1, up_direction)
   let up_right =
     option.then(up_right, fn(up_right) {
-      case dict.get(board, up_right) {
+      case get_figure(board, up_right) {
         // Square empty, disallow
-        Error(_) -> None
-        Ok(#(_, other_figure_owner)) ->
+        None -> None
+        Some(#(_, other_figure_owner)) ->
           case other_figure_owner == attacker {
             // Square blocked by friendly piece, disallow
             True -> None
@@ -342,11 +386,11 @@ fn evaluate_figure_move_description(
         // Coordinate out of bounds, disallow
         None -> set.new()
         Some(destination_coord) -> {
-          let capturee = dict.get(board, destination_coord)
+          let capturee = get_figure(board, destination_coord)
           case capturee {
             // Square free, allow
-            Error(_) -> set.from_list([destination_coord])
-            Ok(#(_, capturee_owner)) ->
+            None -> set.from_list([destination_coord])
+            Some(#(_, capturee_owner)) ->
               case capturee_owner == attacker {
                 // Square blocked by enemy, allow
                 False -> set.from_list([destination_coord])
@@ -375,9 +419,9 @@ fn evaluate_line_of_sight_loop(
     // Out of bounds, stop exploring
     None -> accumulator
     Some(next_coord) -> {
-      case dict.get(board, next_coord) {
+      case get_figure(board, next_coord) {
         // Nothing there: Add next_coord to accumulator and keep exploring
-        Error(_) ->
+        None ->
           evaluate_line_of_sight_loop(
             board,
             next_coord,
@@ -386,7 +430,7 @@ fn evaluate_line_of_sight_loop(
             set.insert(accumulator, next_coord),
           )
         // Blocked by figure
-        Ok(#(_, capturee_owner)) -> {
+        Some(#(_, capturee_owner)) -> {
           case capturee_owner == attacker {
             // Blocked by friendly figure, stop exploring
             True -> accumulator
