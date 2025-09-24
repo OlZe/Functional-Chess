@@ -390,3 +390,47 @@ pub fn get_moves_errors_test() {
     )
   assert c.get_moves(game, c.a1) == Error(c.SelectedFigureIsNotFriendly)
 }
+
+pub fn player_move_test() {
+  let game =
+    c.Game(
+      board: dict.from_list([
+        #(c.a1, #(c.King, c.White)),
+        #(c.b2, #(c.Pawn, c.Black)),
+      ]),
+      state: c.WaitingOnNextMove(c.White),
+    )
+  assert c.player_move(game, c.a1, c.b2)
+    == Ok(c.Game(
+      board: dict.from_list([
+        #(c.b2, #(c.King, c.White)),
+      ]),
+      state: c.WaitingOnNextMove(c.Black),
+    ))
+}
+
+pub fn player_move_errors_test() {
+  // Game already checkmate
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.a1, #(c.King, c.White))]),
+      state: c.Checkmate(c.White),
+    )
+  assert c.player_move(game, c.a1, c.a2) == Error(c.GameAlreadyOver)
+
+  // Game already forfeit
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.a1, #(c.King, c.White))]),
+      state: c.Forfeit(c.White),
+    )
+  assert c.player_move(game, c.a1, c.a2) == Error(c.GameAlreadyOver)
+
+  // Game already stalemate
+  let game =
+    c.Game(
+      board: dict.from_list([#(c.a1, #(c.King, c.White))]),
+      state: c.Stalemate,
+    )
+  assert c.player_move(game, c.a1, c.a2) == Error(c.GameAlreadyOver)
+}

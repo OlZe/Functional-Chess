@@ -98,17 +98,51 @@ pub fn new_game() -> Game {
   Game(board:, state: WaitingOnNextMove(White))
 }
 
-pub type GetMovesError {
+pub type MoveError {
   GameAlreadyOver
   SelectedFigureDoesntExist
   SelectedFigureIsNotFriendly
+  SelectedFigureCantGoThere
+}
+
+/// Make a move as a player
+pub fn player_move(
+  game: Game,
+  from: Coordinate,
+  to: Coordinate,
+) -> Result(Game, MoveError) {
+  case game.state {
+    Checkmate(_) -> Error(GameAlreadyOver)
+    Forfeit(_) -> Error(GameAlreadyOver)
+    Stalemate -> Error(GameAlreadyOver)
+    WaitingOnNextMove(moving_player) -> {
+      let figure =
+        dict.get(game.board, from)
+        |> result.map_error(fn(_) { SelectedFigureDoesntExist })
+      use figure <- result.try(figure)
+      use possible_moves <- result.try(get_moves(game, from))
+      use <- bool.guard(
+        when: !set.contains(possible_moves, to),
+        return: Error(SelectedFigureCantGoThere),
+      )
+      let new_board =
+        game.board
+        |> dict.delete(from)
+        |> dict.insert(to, figure)
+      let other_player = case moving_player {
+        Black -> White
+        White -> Black
+      }
+      Ok(Game(new_board, WaitingOnNextMove(other_player)))
+    }
+  }
 }
 
 /// Return a list of possible moves from a selected figure
 pub fn get_moves(
   game: Game,
   figure coord: Coordinate,
-) -> Result(set.Set(Coordinate), GetMovesError) {
+) -> Result(set.Set(Coordinate), MoveError) {
   case game.state {
     Checkmate(_) -> Error(GameAlreadyOver)
     Forfeit(_) -> Error(GameAlreadyOver)
@@ -226,7 +260,7 @@ fn get_moves_for_king(
   [#(0, 1), #(1, 1), #(1, 0), #(1, -1), #(0, -1), #(-1, -1), #(-1, 0), #(-1, 1)]
   |> set.from_list()
   |> set.map(JumpTo(origin: coord, offset: _, attacker:))
-  |> set.map(evaluate_move_description(board, _))
+  |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
 }
@@ -248,7 +282,7 @@ fn get_moves_for_knight(
   ]
   |> set.from_list()
   |> set.map(JumpTo(origin: coord, offset: _, attacker:))
-  |> set.map(evaluate_move_description(board, _))
+  |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
 }
@@ -261,7 +295,7 @@ fn get_moves_for_rook(
   [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
-  |> set.map(evaluate_move_description(board, _))
+  |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
 }
@@ -274,7 +308,7 @@ fn get_moves_for_bishop(
   [#(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
-  |> set.map(evaluate_move_description(board, _))
+  |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
 }
@@ -287,19 +321,19 @@ fn get_moves_for_queen(
   [#(0, 1), #(1, 0), #(0, -1), #(-1, 0), #(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
-  |> set.map(evaluate_move_description(board, _))
+  |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
 }
 
-type MoveDescription {
+type FigureMoveDescription {
   JumpTo(origin: Coordinate, offset: #(Int, Int), attacker: Player)
   LineOfSight(origin: Coordinate, direction: #(Int, Int), attacker: Player)
 }
 
-fn evaluate_move_description(
+fn evaluate_figure_move_description(
   board: Board,
-  move_description: MoveDescription,
+  move_description: FigureMoveDescription,
 ) -> set.Set(Coordinate) {
   case move_description {
     JumpTo(origin, #(offset_file, offset_row), attacker) -> {
