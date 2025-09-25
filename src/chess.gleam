@@ -4,6 +4,8 @@ import chess/board.{type Board, type Player, Black, White}
 import chess/coordinate.{type Coordinate}
 import chess/internal/logic
 import gleam/bool
+import gleam/dict
+import gleam/list
 import gleam/result
 import gleam/set
 
@@ -52,11 +54,52 @@ pub fn player_move(
         return: Error(SelectedFigureCantGoThere),
       )
       let new_board = board.move(game.board, from, to)
-      let other_player = case moving_player {
+      let opponent_player = case moving_player {
         Black -> White
         White -> Black
       }
-      Ok(Game(new_board, WaitingOnNextMove(other_player)))
+      let new_state = {
+        // If there are only kings left, then the game is a stalemate
+        use <- bool.guard(
+          when: dict.is_empty(new_board.other_figures),
+          return: Stalemate,
+        )
+
+        // Check if other_player has no moves left => Checkmate or Stalemate
+        let opponent_has_no_moves = {
+          let opponent_king = case opponent_player {
+            Black -> new_board.black_king
+            White -> new_board.white_king
+          }
+          let opponent_figures =
+            new_board.other_figures
+            |> dict.to_list
+            |> list.filter(fn(coord_and_figure) {
+              coord_and_figure.1.1 == opponent_player
+            })
+            |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
+            |> list.append([opponent_king])
+
+          let opponent_moves =
+            opponent_figures
+            |> list.flat_map(fn(from) {
+              get_legal_moves_helper(new_board, from, opponent_player)
+              |> result.map(set.to_list)
+              |> result.unwrap([])
+            })
+
+          list.is_empty(opponent_moves)
+        }
+
+        let opponent_is_in_check = logic.is_in_check(new_board, opponent_player)
+
+        case opponent_has_no_moves, opponent_is_in_check {
+          True, True -> Checkmate(winner: moving_player)
+          True, False -> Stalemate
+          False, _ -> WaitingOnNextMove(opponent_player)
+        }
+      }
+      Ok(Game(new_board, new_state))
     }
   }
 }
@@ -72,30 +115,30 @@ pub fn get_legal_moves(
     Checkmate(_) -> Error(GameAlreadyOver)
     Forfeit(_) -> Error(GameAlreadyOver)
     Stalemate -> Error(GameAlreadyOver)
-    WaitingOnNextMove(moving_player) -> {
-      case logic.get_moves(game.board, coord, moving_player) {
-        Error(logic.SelectedFigureDoesntExist) ->
-          Error(SelectedFigureDoesntExist)
-        Error(logic.SelectedFigureIsNotFriendly) ->
-          Error(SelectedFigureIsNotFriendly)
-        Ok(moves) -> {
-          // If moving_player is not in check, then return all moves
-          use <- bool.guard(
-            when: !logic.is_in_check(game.board, moving_player),
-            return: Ok(moves),
-          )
+    WaitingOnNextMove(moving_player) ->
+      get_legal_moves_helper(game.board, coord, moving_player)
+  }
+}
 
-          // moving_player is in check, only allow moves that get him out of check
-          moves
-          |> set.filter(fn(to) {
-            let from = coord
-            // Simulate move, then check if moving_player is still in check
-            let future_board = board.move(game.board, from, to)
-            !logic.is_in_check(future_board, moving_player)
-          })
-          |> Ok
-        }
-      }
+fn get_legal_moves_helper(
+  board board: Board,
+  figure coord: Coordinate,
+  moving_player moving_player: Player,
+) -> Result(set.Set(Coordinate), Error) {
+  case logic.get_moves(board, coord, moving_player) {
+    Error(logic.SelectedFigureDoesntExist) -> Error(SelectedFigureDoesntExist)
+    Error(logic.SelectedFigureIsNotFriendly) ->
+      Error(SelectedFigureIsNotFriendly)
+    Ok(moves) -> {
+      // Make sure the player is not in check after his move
+      moves
+      |> set.filter(fn(to) {
+        let from = coord
+        // Simulate move, then check if moving_player is still in check
+        let future_board = board.move(board, from, to)
+        !logic.is_in_check(future_board, moving_player)
+      })
+      |> Ok
     }
   }
 }

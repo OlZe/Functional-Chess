@@ -17,7 +17,7 @@ Features marked incomplete are still being worked on.
 - [x] Request all legal moves of a given figure
 - [x] Prohibit moves that leave the king in check
 - [x] Descriptive Error returns
-- [ ] Identify game-over conditions (Checkmate, Stalemate)
+- [x] Identify game-over conditions (Checkmate, Stalemate)
 - [ ] Player can forfeit
 - [ ] Pawn promotion
 - [ ] Castling

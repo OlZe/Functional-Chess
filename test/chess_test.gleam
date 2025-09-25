@@ -164,8 +164,7 @@ pub fn king_can_move_test() {
       white_king: c.b2,
       black_king: c.e8,
       other_figures: dict.from_list([
-        #(c.a2, #(Pawn, Black)),
-        #(c.b1, #(Pawn, Black)),
+        #(c.a3, #(Pawn, Black)),
       ]),
     )
   let game = m.Game(board, m.WaitingOnNextMove(White))
@@ -417,11 +416,16 @@ pub fn player_move_test() {
       black_king: c.e8,
       other_figures: dict.from_list([
         #(c.b2, #(Pawn, Black)),
+        #(c.e7, #(Pawn, White)),
       ]),
     )
   let game = m.Game(board, m.WaitingOnNextMove(White))
   let expected_board =
-    b.Board(white_king: c.b2, black_king: c.e8, other_figures: dict.new())
+    b.Board(
+      white_king: c.b2,
+      black_king: c.e8,
+      other_figures: dict.from_list([#(c.e7, #(Pawn, White))]),
+    )
   assert m.player_move(game, c.a1, c.b2)
     == Ok(m.Game(expected_board, m.WaitingOnNextMove(Black)))
 }
@@ -440,4 +444,64 @@ pub fn player_move_errors_test() {
   // Game already stalemate
   let game = m.Game(board, m.Stalemate)
   assert m.player_move(game, c.a1, c.a2) == Error(m.GameAlreadyOver)
+}
+
+pub fn player_cannot_check_himself_test() {
+  let board =
+    b.Board(
+      white_king: c.a1,
+      black_king: c.e8,
+      other_figures: dict.from_list([
+        #(c.a3, #(Pawn, Black)),
+        #(c.b3, #(Pawn, Black)),
+      ]),
+    )
+  let game = m.Game(board, m.WaitingOnNextMove(White))
+  let assert Ok(moves) = m.get_legal_moves(game, c.a1)
+  assert moves == set.from_list([c.b1])
+}
+
+pub fn stalemate_by_empty_board_test() {
+  let board =
+    b.Board(
+      white_king: c.e1,
+      black_king: c.e8,
+      other_figures: dict.from_list([
+        #(c.e2, #(Pawn, Black)),
+      ]),
+    )
+  let game = m.Game(board, m.WaitingOnNextMove(White))
+
+  let assert Ok(m.Game(_, m.Stalemate)) = m.player_move(game, c.e1, c.e2)
+}
+
+pub fn stalemate_by_no_moves_left_test() {
+  let board =
+    b.Board(
+      white_king: c.e1,
+      black_king: c.a8,
+      other_figures: dict.from_list([
+        #(c.h7, #(Rook, White)),
+        #(c.h5, #(Rook, White)),
+      ]),
+    )
+  let game = m.Game(board, m.WaitingOnNextMove(White))
+
+  let assert Ok(m.Game(_, m.Stalemate)) = m.player_move(game, c.h5, c.b5)
+}
+
+pub fn checkmate_test() {
+  let board =
+    b.Board(
+      white_king: c.e4,
+      black_king: c.e8,
+      other_figures: dict.from_list([
+        #(c.b7, #(Rook, White)),
+        #(c.a6, #(Rook, White)),
+      ]),
+    )
+  let game = m.Game(board, m.WaitingOnNextMove(White))
+
+  let assert Ok(m.Game(_, m.Checkmate(winner: White))) =
+    m.player_move(game, c.a6, c.a8)
 }
