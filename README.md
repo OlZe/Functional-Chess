@@ -12,15 +12,16 @@ The API is minimal and easy to use. Refer to the [online documentation](https://
 
 Features marked incomplete are still being worked on.
 
-- [x] Game starts in standard starting position
-- [x] Can move the figures just like in a real game
-- [x] Can request all legal moves of a given figure
+- [x] Start in standard starting position
+- [x] Move the figures just like in a real game
+- [x] Request all legal moves of a given figure
 - [x] Prohibit moves that leave the king in check
 - [x] Descriptive Error returns
-- [ ] Correctly identifies Game Over-condition (Checkmate, Stalemate)
+- [ ] Identify game-over conditions (Checkmate, Stalemate)
 - [ ] Player can forfeit
-- [ ] Allows pawn promotion
-- [ ] Allows en passant
+- [ ] Pawn promotion
+- [ ] Castling
+- [ ] En passant
 
 ## Example Usage
 
