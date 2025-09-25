@@ -9,18 +9,52 @@ This project has no UI or I/O. This is purely just a library to be used by other
 
 The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess/).
 
-## Development
+## Example Usage
 
-To run tests:
+This example showcases Gleam code, though the project may be used with any Erlang or JavaScript runtime.
 
-```sh
-$ gleam test
+```gleam
+import chess
+import chess/coordinate as coord
+
+pub fn main() {
+  // Create a new game in standard chess starting position
+  let game = chess.new_game()
+
+  echo game.state // => WaitingOnNextMove(White)
+
+  // White gets all legal moves of pawn on E2
+  let _ = chess.get_legal_moves(game, coord.e2) // => [E3, E4]
+
+  // White moves pawn E2 to E4
+  let assert Ok(game) = chess.player_move(game, coord.e2, coord.e4)
+
+  // Now it's black's turn
+  echo game.state // => WaitingOnNextMove(Black)
+
+  // Black tries to illegally move king to E5
+  // => Error(chess.SelectedFigureCantGoThere)
+  echo chess.player_move(game, coord.e8, coord.e5)
+}
 ```
 
-To rebuild docs:
+## GitHub Workflows
+
+Unit tests `gleam test` are automatically executed on push.
+
+The [online documentation](https://olze.github.io/Functional-Chess/) is built and published automatically on push.
+
+## Development
+
+To run tests locally:
 
 ```sh
-$ gleam docs build
-$ rm -r ./docs
-$ cp -r ./build/dev/docs/chess ./docs
+gleam test
+```
+
+To build the html docs locally:
+
+```sh
+gleam docs build
+open build/dev/docs/chess/index.html
 ```
