@@ -1,6 +1,6 @@
 # A chess game written in Gleam
 
-> This project is a work in progress! As of now there are no releases of any kind.
+> ⚠️🛠️ This project is a work in progress! As of now there are no releases of any kind.
 
 This is the game of chess implemented in [Gleam](https://gleam.run/) using a purely functional programming paradigm. Functionality is ensured using unit tests.
 
