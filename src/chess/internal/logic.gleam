@@ -9,39 +9,65 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/set
 
-/// Returned by `log.get_moves` in error cases
+/// Returned by `logic.get_legal_moves` in error cases
 pub type GetMovesError {
   SelectedFigureDoesntExist
   SelectedFigureIsNotFriendly
 }
 
-/// Retrieve all moves of a given figure.
-/// 
-/// Doesn't consider if moving_player's king is in check.
-pub fn get_moves(
+/// Retrieve all legal moves of all figures of `moving_player`
+pub fn get_all_legal_moves(
+  board board: Board,
+  moving_player moving_player: Player,
+) -> set.Set(#(Coordinate, Coordinate)) {
+  let king = case moving_player {
+    White -> board.white_king
+    Black -> board.black_king
+  }
+  let figures =
+    board.other_figures
+    |> dict.to_list
+    |> list.filter(fn(coord_and_figure) {
+      coord_and_figure.1.1 == moving_player
+    })
+    |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
+    |> list.append([king])
+    |> set.from_list()
+
+  let all_moves =
+    figures
+    |> set.map(fn(from) {
+      get_legal_moves(board, from, moving_player)
+      |> result.unwrap(set.new())
+      |> set.map(fn(to) { #(from, to) })
+    })
+    // Flatten
+    |> set.fold(set.new(), set.union)
+
+  all_moves
+}
+
+/// Retrieve all legal moves of a given figure.
+pub fn get_legal_moves(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
 ) -> Result(set.Set(Coordinate), GetMovesError) {
-  let selected_figure =
-    board.get(board, coord)
-    |> option.to_result(SelectedFigureDoesntExist)
-  use #(selected_figure, selected_figure_owner) <- result.try(selected_figure)
-  use <- bool.guard(
-    when: selected_figure_owner != moving_player,
-    return: Error(SelectedFigureIsNotFriendly),
-  )
-
-  let moves = case selected_figure {
-    board.Pawn -> get_moves_for_pawn(board, coord, moving_player)
-    board.Bishop -> get_moves_for_bishop(board, coord, moving_player)
-    board.King -> get_moves_for_king(board, coord, moving_player)
-    board.Knight -> get_moves_for_knight(board, coord, moving_player)
-    board.Queen -> get_moves_for_queen(board, coord, moving_player)
-    board.Rook -> get_moves_for_rook(board, coord, moving_player)
+  case get_unchecked_moves(board, coord, moving_player) {
+    Error(SelectedFigureDoesntExist) -> Error(SelectedFigureDoesntExist)
+    Error(SelectedFigureIsNotFriendly) -> Error(SelectedFigureIsNotFriendly)
+    Ok(moves) -> {
+      // Make sure the player is not in check after his move
+      moves
+      |> set.filter(fn(to) {
+        let from = coord
+        // Simulate move, then check if moving_player is still in check
+        let future_board = board.move(board, from, to)
+        !is_in_check(future_board, moving_player)
+      })
+      |> Ok
+    }
   }
-
-  Ok(moves)
 }
 
 /// Determines wether the player is being checked by its opponent.
@@ -67,12 +93,41 @@ pub fn is_in_check(board board: Board, player attackee: Player) -> Bool {
   |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
   // Get all attacker moves
   |> list.flat_map(fn(coord) {
-    get_moves(board, coord, attacker)
+    get_unchecked_moves(board, coord, attacker)
     |> result.map(set.to_list)
     |> result.unwrap([])
   })
   // Check if any attacker move goes to attackee king
   |> list.contains(attackee_king)
+}
+
+/// Retrieve all moves of a given figure.
+/// 
+/// Doesn't consider if moving_player's king is in check.
+fn get_unchecked_moves(
+  board board: Board,
+  figure coord: Coordinate,
+  moving_player moving_player: Player,
+) -> Result(set.Set(Coordinate), GetMovesError) {
+  let selected_figure =
+    board.get(board, coord)
+    |> option.to_result(SelectedFigureDoesntExist)
+  use #(selected_figure, selected_figure_owner) <- result.try(selected_figure)
+  use <- bool.guard(
+    when: selected_figure_owner != moving_player,
+    return: Error(SelectedFigureIsNotFriendly),
+  )
+
+  let moves = case selected_figure {
+    board.Pawn -> get_moves_for_pawn(board, coord, moving_player)
+    board.Bishop -> get_moves_for_bishop(board, coord, moving_player)
+    board.King -> get_moves_for_king(board, coord, moving_player)
+    board.Knight -> get_moves_for_knight(board, coord, moving_player)
+    board.Queen -> get_moves_for_queen(board, coord, moving_player)
+    board.Rook -> get_moves_for_rook(board, coord, moving_player)
+  }
+
+  Ok(moves)
 }
 
 /// Get all possible destinations of a pawn

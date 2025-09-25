@@ -5,7 +5,6 @@ import chess/coordinate.{type Coordinate}
 import chess/internal/logic
 import gleam/bool
 import gleam/dict
-import gleam/list
 import gleam/result
 import gleam/set
 
@@ -49,47 +48,31 @@ pub fn player_move(
     Stalemate -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
       use possible_moves <- result.try(get_legal_moves(game, from))
+
+      // Check if given move is legal
       use <- bool.guard(
         when: !set.contains(possible_moves, to),
         return: Error(SelectedFigureCantGoThere),
       )
+
+      // Do the move
       let new_board = board.move(game.board, from, to)
-      let opponent_player = case moving_player {
-        Black -> White
-        White -> Black
-      }
+
+      // Check if game ended
       let new_state = {
+        let opponent_player = case moving_player {
+          Black -> White
+          White -> Black
+        }
         // If there are only kings left, then the game is a stalemate
         use <- bool.guard(
           when: dict.is_empty(new_board.other_figures),
           return: Stalemate,
         )
 
-        // Check if other_player has no moves left => Checkmate or Stalemate
-        let opponent_has_no_moves = {
-          let opponent_king = case opponent_player {
-            Black -> new_board.black_king
-            White -> new_board.white_king
-          }
-          let opponent_figures =
-            new_board.other_figures
-            |> dict.to_list
-            |> list.filter(fn(coord_and_figure) {
-              coord_and_figure.1.1 == opponent_player
-            })
-            |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
-            |> list.append([opponent_king])
-
-          let opponent_moves =
-            opponent_figures
-            |> list.flat_map(fn(from) {
-              get_legal_moves_helper(new_board, from, opponent_player)
-              |> result.map(set.to_list)
-              |> result.unwrap([])
-            })
-
-          list.is_empty(opponent_moves)
-        }
+        let opponent_has_no_moves =
+          logic.get_all_legal_moves(new_board, opponent_player)
+          |> set.is_empty()
 
         let opponent_is_in_check = logic.is_in_check(new_board, opponent_player)
 
@@ -116,29 +99,12 @@ pub fn get_legal_moves(
     Forfeit(_) -> Error(GameAlreadyOver)
     Stalemate -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) ->
-      get_legal_moves_helper(game.board, coord, moving_player)
-  }
-}
-
-fn get_legal_moves_helper(
-  board board: Board,
-  figure coord: Coordinate,
-  moving_player moving_player: Player,
-) -> Result(set.Set(Coordinate), Error) {
-  case logic.get_moves(board, coord, moving_player) {
-    Error(logic.SelectedFigureDoesntExist) -> Error(SelectedFigureDoesntExist)
-    Error(logic.SelectedFigureIsNotFriendly) ->
-      Error(SelectedFigureIsNotFriendly)
-    Ok(moves) -> {
-      // Make sure the player is not in check after his move
-      moves
-      |> set.filter(fn(to) {
-        let from = coord
-        // Simulate move, then check if moving_player is still in check
-        let future_board = board.move(board, from, to)
-        !logic.is_in_check(future_board, moving_player)
+      logic.get_legal_moves(game.board, coord, moving_player)
+      |> result.map_error(fn(error) {
+        case error {
+          logic.SelectedFigureDoesntExist -> SelectedFigureDoesntExist
+          logic.SelectedFigureIsNotFriendly -> SelectedFigureIsNotFriendly
+        }
       })
-      |> Ok
-    }
   }
 }
