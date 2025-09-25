@@ -15,9 +15,9 @@ pub type Game {
 
 /// Represents if the game is won/lost/tied or still ongoing
 pub type GameState {
-  Checkmate(winner: Player)
-  Forfeit(winner: Player)
-  Stalemate
+  Checkmated(winner: Player)
+  Forfeited(winner: Player)
+  Stalemated
   WaitingOnNextMove(next_player: Player)
 }
 
@@ -34,55 +34,69 @@ pub type Error {
   SelectedFigureCantGoThere
 }
 
-/// Process a chess move from `from` to `to` and return the new state.
+pub type PlayerMove {
+  MoveFigure(from: Coordinate, to: Coordinate)
+  Forfeit
+}
+
+/// Process a chess `move` and return the new state.
 /// 
-/// To get a list of legal moves use `chess.get_legal_moves`
+/// To get a list of legal figure moves use `chess.get_legal_moves`
 pub fn player_move(
   game game: Game,
-  from from: Coordinate,
-  to to: Coordinate,
+  move player_move: PlayerMove,
 ) -> Result(Game, Error) {
   case game.state {
-    Checkmate(_) -> Error(GameAlreadyOver)
-    Forfeit(_) -> Error(GameAlreadyOver)
-    Stalemate -> Error(GameAlreadyOver)
+    Checkmated(_) -> Error(GameAlreadyOver)
+    Forfeited(_) -> Error(GameAlreadyOver)
+    Stalemated -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
-      use possible_moves <- result.try(get_legal_moves(game, from))
+      let opponent_player = case moving_player {
+        Black -> White
+        White -> Black
+      }
 
-      // Check if given move is legal
-      use <- bool.guard(
-        when: !set.contains(possible_moves, to),
-        return: Error(SelectedFigureCantGoThere),
-      )
+      case player_move {
+        // Forfeit, return forfeited
+        Forfeit -> Ok(Game(game.board, Forfeited(opponent_player)))
 
-      // Do the move
-      let new_board = board.move(game.board, from, to)
+        // Process figure move
+        MoveFigure(from:, to:) -> {
+          use possible_moves <- result.try(get_legal_moves(game, from))
 
-      // Check if game ended
-      let new_state = {
-        let opponent_player = case moving_player {
-          Black -> White
-          White -> Black
-        }
-        // If there are only kings left, then the game is a stalemate
-        use <- bool.guard(
-          when: dict.is_empty(new_board.other_figures),
-          return: Stalemate,
-        )
+          // Check if given move is legal
+          use <- bool.guard(
+            when: !set.contains(possible_moves, to),
+            return: Error(SelectedFigureCantGoThere),
+          )
 
-        let opponent_has_no_moves =
-          logic.get_all_legal_moves(new_board, opponent_player)
-          |> set.is_empty()
+          // Do the move
+          let new_board = board.move(game.board, from, to)
 
-        let opponent_is_in_check = logic.is_in_check(new_board, opponent_player)
+          // Check if game ended
+          let new_state = {
+            // If there are only kings left, then the game is a stalemate
+            use <- bool.guard(
+              when: dict.is_empty(new_board.other_figures),
+              return: Stalemated,
+            )
 
-        case opponent_has_no_moves, opponent_is_in_check {
-          True, True -> Checkmate(winner: moving_player)
-          True, False -> Stalemate
-          False, _ -> WaitingOnNextMove(opponent_player)
+            let opponent_has_no_moves =
+              logic.get_all_legal_moves(new_board, opponent_player)
+              |> set.is_empty()
+
+            let opponent_is_in_check =
+              logic.is_in_check(new_board, opponent_player)
+
+            case opponent_has_no_moves, opponent_is_in_check {
+              True, True -> Checkmated(winner: moving_player)
+              True, False -> Stalemated
+              False, _ -> WaitingOnNextMove(opponent_player)
+            }
+          }
+          Ok(Game(new_board, new_state))
         }
       }
-      Ok(Game(new_board, new_state))
     }
   }
 }
@@ -95,9 +109,9 @@ pub fn get_legal_moves(
   figure coord: Coordinate,
 ) -> Result(set.Set(Coordinate), Error) {
   case game.state {
-    Checkmate(_) -> Error(GameAlreadyOver)
-    Forfeit(_) -> Error(GameAlreadyOver)
-    Stalemate -> Error(GameAlreadyOver)
+    Checkmated(_) -> Error(GameAlreadyOver)
+    Forfeited(_) -> Error(GameAlreadyOver)
+    Stalemated -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) ->
       logic.get_legal_moves(game.board, coord, moving_player)
       |> result.map_error(fn(error) {

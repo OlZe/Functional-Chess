@@ -18,7 +18,7 @@ Features marked incomplete are still being worked on.
 - [x] Prohibit moves that leave the king in check
 - [x] Descriptive Error returns
 - [x] Identify game-over conditions (Checkmate, Stalemate)
-- [ ] Player can forfeit
+- [x] Player can forfeit
 - [ ] Pawn promotion
 - [ ] Castling
 - [ ] En passant
