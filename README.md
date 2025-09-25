@@ -8,6 +8,20 @@ This project has no UI or I/O. This is purely just a library to be used by other
 
 The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess/).
 
+## Features
+
+Features marked incomplete are still being worked on.
+
+- [x] Game starts in standard starting position
+- [x] Can move the figures just like in a real game
+- [x] Can request all legal moves of a given figure
+- [x] Prohibit moves that leave the king in check
+- [x] Descriptive Error returns
+- [ ] Correctly identifies Game Over-condition (Checkmate, Stalemate)
+- [ ] Player can forfeit
+- [ ] Allows pawn promotion
+- [ ] Allows en passant
+
 ## Example Usage
 
 This example showcases Gleam code, though the project may be used with any Erlang or JavaScript runtime.
