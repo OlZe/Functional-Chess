@@ -1,16 +1,18 @@
+//// The main module of this chess package is responsible for the public facing API
+
+import chess/board.{type Board, type Player, Black, White}
+import chess/coordinate.{type Coordinate}
+import chess/internal/logic
 import gleam/bool
-import gleam/dict
-import gleam/int
-import gleam/list
-import gleam/option.{type Option, None, Some}
-import gleam/order
 import gleam/result
 import gleam/set
 
+/// Represents entire game state
 pub type Game {
   Game(board: Board, state: GameState)
 }
 
+/// Represents if the game is won/lost/tied or still ongoing
 pub type GameState {
   Checkmate(winner: Player)
   Forfeit(winner: Player)
@@ -18,150 +20,27 @@ pub type GameState {
   WaitingOnNextMove(next_player: Player)
 }
 
-pub type Board {
-  Board(
-    white_king: Coordinate,
-    black_king: Coordinate,
-    other_figures: dict.Dict(Coordinate, #(Figure, Player)),
-  )
-}
-
-fn get_figure(board: Board, coord: Coordinate) -> Option(#(Figure, Player)) {
-  case board {
-    Board(white_king, _, _) if white_king == coord -> Some(#(King, White))
-    Board(_, black_king, _) if black_king == coord -> Some(#(King, Black))
-    Board(_, _, other_figures) ->
-      other_figures |> dict.get(coord) |> option.from_result()
-  }
-}
-
-/// Peforms no checking weathter from and to are legal moves
-/// If from is pointing to an empty square, then nothing happens
-fn move_figure(board: Board, from: Coordinate, to: Coordinate) -> Board {
-  case board {
-    Board(white_king:, black_king:, other_figures:) if white_king == from ->
-      Board(
-        white_king: to,
-        black_king:,
-        other_figures: dict.delete(other_figures, to),
-      )
-    Board(white_king:, black_king:, other_figures:) if black_king == from ->
-      Board(
-        white_king:,
-        black_king: to,
-        other_figures: dict.delete(other_figures, to),
-      )
-    Board(white_king:, black_king:, other_figures:) -> {
-      let moving_figure = dict.get(other_figures, from)
-      case moving_figure {
-        Error(_) -> board
-        Ok(moving_figure) ->
-          Board(
-            white_king:,
-            black_king:,
-            other_figures: other_figures
-              |> dict.delete(from)
-              |> dict.insert(to, moving_figure),
-          )
-      }
-    }
-  }
-}
-
-pub type Coordinate =
-  #(File, Row)
-
-pub type Figure {
-  Pawn
-  Knight
-  Bishop
-  Rook
-  Queen
-  King
-}
-
-pub type Player {
-  White
-  Black
-}
-
-pub type File {
-  FileA
-  FileB
-  FileC
-  FileD
-  FileE
-  FileF
-  FileG
-  FileH
-}
-
-pub type Row {
-  Row1
-  Row2
-  Row3
-  Row4
-  Row5
-  Row6
-  Row7
-  Row8
-}
-
+/// Creates a new game in the standard starting chess position.
 pub fn new_game() -> Game {
-  let board =
-    Board(
-      white_king: e1,
-      black_king: e8,
-      other_figures: dict.from_list([
-        #(a1, #(Rook, White)),
-        #(b1, #(Knight, White)),
-        #(c1, #(Bishop, White)),
-        #(d1, #(Queen, White)),
-        #(f1, #(Bishop, White)),
-        #(g1, #(Knight, White)),
-        #(h1, #(Rook, White)),
-        #(a2, #(Pawn, White)),
-        #(b2, #(Pawn, White)),
-        #(c2, #(Pawn, White)),
-        #(d2, #(Pawn, White)),
-        #(e2, #(Pawn, White)),
-        #(f2, #(Pawn, White)),
-        #(g2, #(Pawn, White)),
-        #(h2, #(Pawn, White)),
-        #(a8, #(Rook, Black)),
-        #(b8, #(Knight, Black)),
-        #(c8, #(Bishop, Black)),
-        #(d8, #(Queen, Black)),
-        #(f8, #(Bishop, Black)),
-        #(g8, #(Knight, Black)),
-        #(h8, #(Rook, Black)),
-        #(a7, #(Pawn, Black)),
-        #(b7, #(Pawn, Black)),
-        #(c7, #(Pawn, Black)),
-        #(d7, #(Pawn, Black)),
-        #(e7, #(Pawn, Black)),
-        #(f7, #(Pawn, Black)),
-        #(g7, #(Pawn, Black)),
-        #(h7, #(Pawn, Black)),
-      ]),
-    )
-
-  Game(board:, state: WaitingOnNextMove(White))
+  Game(board: board.new(), state: WaitingOnNextMove(White))
 }
 
-pub type MoveError {
+/// Represents an error that may be returned by any of the public functions
+pub type Error {
   GameAlreadyOver
   SelectedFigureDoesntExist
   SelectedFigureIsNotFriendly
   SelectedFigureCantGoThere
 }
 
-/// Make a move as a player
+/// Process a chess move from `from` to `to` and return the new state.
+/// 
+/// To get a list of legal moves use `chess.get_legal_moves`
 pub fn player_move(
-  game: Game,
-  from: Coordinate,
-  to: Coordinate,
-) -> Result(Game, MoveError) {
+  game game: Game,
+  from from: Coordinate,
+  to to: Coordinate,
+) -> Result(Game, Error) {
   case game.state {
     Checkmate(_) -> Error(GameAlreadyOver)
     Forfeit(_) -> Error(GameAlreadyOver)
@@ -172,7 +51,7 @@ pub fn player_move(
         when: !set.contains(possible_moves, to),
         return: Error(SelectedFigureCantGoThere),
       )
-      let new_board = move_figure(game.board, from, to)
+      let new_board = board.move(game.board, from, to)
       let other_player = case moving_player {
         Black -> White
         White -> Black
@@ -182,514 +61,41 @@ pub fn player_move(
   }
 }
 
-/// Return a list of possible moves from a selected figure
+/// Return a list of all legal moves from a selected figure.
+/// 
+/// To execute a move use `chess.player_move`
 pub fn get_legal_moves(
-  game: Game,
+  game game: Game,
   figure coord: Coordinate,
-) -> Result(set.Set(Coordinate), MoveError) {
+) -> Result(set.Set(Coordinate), Error) {
   case game.state {
     Checkmate(_) -> Error(GameAlreadyOver)
     Forfeit(_) -> Error(GameAlreadyOver)
     Stalemate -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
-      use moves <- result.try(get_moves(game.board, coord, moving_player))
-
-      // If moving_player is not in check, then return all moves
-      use <- bool.guard(
-        when: !is_in_check(game.board, moving_player),
-        return: Ok(moves),
-      )
-
-      // moving_player is in check, only allow moves that get him out of check
-      moves
-      |> set.filter(fn(to) {
-        let from = coord
-        // Simulate move, then check if moving_player is still in check
-        let future_board = move_figure(game.board, from, to)
-        !is_in_check(future_board, moving_player)
-      })
-      |> Ok
-    }
-  }
-}
-
-/// Finds all moves for a given figure
-/// Ignores if the moving_player's king is in check
-fn get_moves(
-  board: Board,
-  coord: Coordinate,
-  moving_player: Player,
-) -> Result(set.Set(Coordinate), MoveError) {
-  let selected_figure =
-    get_figure(board, coord)
-    |> option.to_result(SelectedFigureDoesntExist)
-  use #(selected_figure, selected_figure_owner) <- result.try(selected_figure)
-  use <- bool.guard(
-    when: selected_figure_owner != moving_player,
-    return: Error(SelectedFigureIsNotFriendly),
-  )
-
-  let moves = case selected_figure {
-    Pawn -> get_moves_for_pawn(board, coord, moving_player)
-    Bishop -> get_moves_for_bishop(board, coord, moving_player)
-    King -> get_moves_for_king(board, coord, moving_player)
-    Knight -> get_moves_for_knight(board, coord, moving_player)
-    Queen -> get_moves_for_queen(board, coord, moving_player)
-    Rook -> get_moves_for_rook(board, coord, moving_player)
-  }
-
-  Ok(moves)
-}
-
-/// Determines wether the attackee is in check
-fn is_in_check(board: Board, player attackee: Player) -> Bool {
-  // Check if attackee is in check by requesting all moves of all
-  // attacker pieces and seeing if any of their moves hit the king
-
-  let attackee_king = case attackee {
-    White -> board.white_king
-    Black -> board.black_king
-  }
-  let attacker = case attackee {
-    White -> Black
-    Black -> White
-  }
-
-  // A king can never be checked by the opponent's king,
-  // thus iterating only over board.other_figures is sufficient
-  board.other_figures
-  |> dict.to_list
-  // Find all pieces belonging to attacker
-  |> list.filter(fn(coord_and_figure) { coord_and_figure.1.1 == attacker })
-  |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
-  // Get all attacker moves
-  |> list.flat_map(fn(coord) {
-    get_moves(board, coord, attacker)
-    |> result.map(set.to_list)
-    |> result.unwrap([])
-  })
-  // Check if any attacker move goes to attackee king
-  |> list.contains(attackee_king)
-}
-
-fn get_moves_for_pawn(
-  board: Board,
-  coord: Coordinate,
-  attacker: Player,
-) -> set.Set(Coordinate) {
-  let up_direction = case attacker {
-    White -> 1
-    Black -> -1
-  }
-
-  // Check move up
-  let up = move_coord(coord, 0, up_direction)
-  let up =
-    option.then(up, fn(up) {
-      case get_figure(board, up) {
-        // Square empty, allow
-        None -> Some(up)
-        // Square blocked, disallow
-        Some(_) -> None
-      }
-    })
-
-  // Check move up-up
-  let up_up = {
-    // If up is disallowed, then disallow up_up
-    use _ <- option.then(up)
-    let to_row = case attacker {
-      White -> Row4
-      Black -> Row5
-    }
-    use up_up <- option.then(move_coord(coord, 0, { 2 * up_direction }))
-    // if 'up-up' doesn't go to 'to_row' then the pawn has moved and is disqualified
-    use <- bool.guard(when: up_up.1 != to_row, return: None)
-    case get_figure(board, up_up) {
-      None -> Some(up_up)
-      Some(_) -> None
-    }
-  }
-
-  // Check capture up-left
-  let up_left = move_coord(coord, -1, up_direction)
-  let up_left =
-    option.then(up_left, fn(up_left) {
-      case get_figure(board, up_left) {
-        // Square empty, disallow
-        None -> None
-        Some(#(_, other_figure_owner)) ->
-          case other_figure_owner == attacker {
-            // Square blocked by friendly piece, disallow
-            True -> None
-            // Square blocked by opposing piece, allow
-            False -> Some(up_left)
-          }
-      }
-    })
-
-  // Check capture up-right
-  let up_right = move_coord(coord, 1, up_direction)
-  let up_right =
-    option.then(up_right, fn(up_right) {
-      case get_figure(board, up_right) {
-        // Square empty, disallow
-        None -> None
-        Some(#(_, other_figure_owner)) ->
-          case other_figure_owner == attacker {
-            // Square blocked by friendly piece, disallow
-            True -> None
-            // Square blocked by opposing piece, allow
-            False -> Some(up_right)
-          }
-      }
-    })
-
-  let all_moves =
-    [up, up_up, up_left, up_right]
-    |> option.values
-    |> set.from_list
-
-  all_moves
-}
-
-fn get_moves_for_king(
-  board: Board,
-  coord: Coordinate,
-  attacker: Player,
-) -> set.Set(Coordinate) {
-  [#(0, 1), #(1, 1), #(1, 0), #(1, -1), #(0, -1), #(-1, -1), #(-1, 0), #(-1, 1)]
-  |> set.from_list()
-  |> set.map(JumpTo(origin: coord, offset: _, attacker:))
-  |> set.map(evaluate_figure_move_description(board, _))
-  // Flatten
-  |> set.fold(set.new(), set.union)
-}
-
-fn get_moves_for_knight(
-  board: Board,
-  coord: Coordinate,
-  attacker: Player,
-) -> set.Set(Coordinate) {
-  [
-    #(1, 2),
-    #(2, 1),
-    #(2, -1),
-    #(1, -2),
-    #(-1, -2),
-    #(-2, -1),
-    #(-2, 1),
-    #(-1, 2),
-  ]
-  |> set.from_list()
-  |> set.map(JumpTo(origin: coord, offset: _, attacker:))
-  |> set.map(evaluate_figure_move_description(board, _))
-  // Flatten
-  |> set.fold(set.new(), set.union)
-}
-
-fn get_moves_for_rook(
-  board: Board,
-  coord: Coordinate,
-  attacker: Player,
-) -> set.Set(Coordinate) {
-  [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
-  |> set.from_list()
-  |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
-  |> set.map(evaluate_figure_move_description(board, _))
-  // Flatten
-  |> set.fold(set.new(), set.union)
-}
-
-fn get_moves_for_bishop(
-  board: Board,
-  coord: Coordinate,
-  attacker: Player,
-) -> set.Set(Coordinate) {
-  [#(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
-  |> set.from_list()
-  |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
-  |> set.map(evaluate_figure_move_description(board, _))
-  // Flatten
-  |> set.fold(set.new(), set.union)
-}
-
-fn get_moves_for_queen(
-  board: Board,
-  coord: Coordinate,
-  attacker: Player,
-) -> set.Set(Coordinate) {
-  [#(0, 1), #(1, 0), #(0, -1), #(-1, 0), #(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
-  |> set.from_list()
-  |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
-  |> set.map(evaluate_figure_move_description(board, _))
-  // Flatten
-  |> set.fold(set.new(), set.union)
-}
-
-type FigureMoveDescription {
-  JumpTo(origin: Coordinate, offset: #(Int, Int), attacker: Player)
-  LineOfSight(origin: Coordinate, direction: #(Int, Int), attacker: Player)
-}
-
-fn evaluate_figure_move_description(
-  board: Board,
-  move_description: FigureMoveDescription,
-) -> set.Set(Coordinate) {
-  case move_description {
-    JumpTo(origin, #(offset_file, offset_row), attacker) -> {
-      let destination_coord = move_coord(origin, offset_file, offset_row)
-      case destination_coord {
-        // Coordinate out of bounds, disallow
-        None -> set.new()
-        Some(destination_coord) -> {
-          let capturee = get_figure(board, destination_coord)
-          case capturee {
-            // Square free, allow
-            None -> set.from_list([destination_coord])
-            Some(#(_, capturee_owner)) ->
-              case capturee_owner == attacker {
-                // Square blocked by enemy, allow
-                False -> set.from_list([destination_coord])
-                // Square blocked by friendly, disallow
-                True -> set.new()
-              }
-          }
-        }
-      }
-    }
-    LineOfSight(origin, direction, attacker) -> {
-      evaluate_line_of_sight_loop(board, origin, direction, attacker, set.new())
-    }
-  }
-}
-
-fn evaluate_line_of_sight_loop(
-  board: Board,
-  origin: Coordinate,
-  direction: #(Int, Int),
-  attacker: Player,
-  accumulator: set.Set(Coordinate),
-) -> set.Set(Coordinate) {
-  let next_coord = move_coord(origin, direction.0, direction.1)
-  case next_coord {
-    // Out of bounds, stop exploring
-    None -> accumulator
-    Some(next_coord) -> {
-      case get_figure(board, next_coord) {
-        // Nothing there: Add next_coord to accumulator and keep exploring
-        None ->
-          evaluate_line_of_sight_loop(
-            board,
-            next_coord,
-            direction,
-            attacker,
-            set.insert(accumulator, next_coord),
+      case logic.get_moves(game.board, coord, moving_player) {
+        Error(logic.SelectedFigureDoesntExist) ->
+          Error(SelectedFigureDoesntExist)
+        Error(logic.SelectedFigureIsNotFriendly) ->
+          Error(SelectedFigureIsNotFriendly)
+        Ok(moves) -> {
+          // If moving_player is not in check, then return all moves
+          use <- bool.guard(
+            when: !logic.is_in_check(game.board, moving_player),
+            return: Ok(moves),
           )
-        // Blocked by figure
-        Some(#(_, capturee_owner)) -> {
-          case capturee_owner == attacker {
-            // Blocked by friendly figure, stop exploring
-            True -> accumulator
-            // Blocked by opposing figure, stop exploring and its coord to accumulator to allow capture
-            False -> set.insert(accumulator, next_coord)
-          }
+
+          // moving_player is in check, only allow moves that get him out of check
+          moves
+          |> set.filter(fn(to) {
+            let from = coord
+            // Simulate move, then check if moving_player is still in check
+            let future_board = board.move(game.board, from, to)
+            !logic.is_in_check(future_board, moving_player)
+          })
+          |> Ok
         }
       }
     }
   }
 }
-
-fn move_coord(
-  coord: Coordinate,
-  by_file by_file: Int,
-  by_row by_row: Int,
-) -> Option(Coordinate) {
-  use new_file <- option.then(move_file(coord.0, by_file))
-  use new_row <- option.then(move_row(coord.1, by_row))
-  Some(#(new_file, new_row))
-}
-
-fn move_row(row: Row, by: Int) -> Option(Row) {
-  case int.compare(by, 0) {
-    order.Eq -> Some(row)
-    order.Gt ->
-      case row {
-        Row1 -> move_row(Row2, by - 1)
-        Row2 -> move_row(Row3, by - 1)
-        Row3 -> move_row(Row4, by - 1)
-        Row4 -> move_row(Row5, by - 1)
-        Row5 -> move_row(Row6, by - 1)
-        Row6 -> move_row(Row7, by - 1)
-        Row7 -> move_row(Row8, by - 1)
-        Row8 -> None
-      }
-    order.Lt ->
-      case row {
-        Row1 -> None
-        Row2 -> move_row(Row1, by + 1)
-        Row3 -> move_row(Row2, by + 1)
-        Row4 -> move_row(Row3, by + 1)
-        Row5 -> move_row(Row4, by + 1)
-        Row6 -> move_row(Row5, by + 1)
-        Row7 -> move_row(Row6, by + 1)
-        Row8 -> move_row(Row7, by + 1)
-      }
-  }
-}
-
-fn move_file(file: File, by: Int) -> Option(File) {
-  case int.compare(by, 0) {
-    order.Eq -> Some(file)
-    order.Gt ->
-      case file {
-        FileA -> move_file(FileB, by - 1)
-        FileB -> move_file(FileC, by - 1)
-        FileC -> move_file(FileD, by - 1)
-        FileD -> move_file(FileE, by - 1)
-        FileE -> move_file(FileF, by - 1)
-        FileF -> move_file(FileG, by - 1)
-        FileG -> move_file(FileH, by - 1)
-        FileH -> None
-      }
-    order.Lt ->
-      case file {
-        FileA -> None
-        FileB -> move_file(FileA, by + 1)
-        FileC -> move_file(FileB, by + 1)
-        FileD -> move_file(FileC, by + 1)
-        FileE -> move_file(FileD, by + 1)
-        FileF -> move_file(FileE, by + 1)
-        FileG -> move_file(FileF, by + 1)
-        FileH -> move_file(FileG, by + 1)
-      }
-  }
-}
-
-pub const a1 = #(FileA, Row1)
-
-pub const a2 = #(FileA, Row2)
-
-pub const a3 = #(FileA, Row3)
-
-pub const a4 = #(FileA, Row4)
-
-pub const a5 = #(FileA, Row5)
-
-pub const a6 = #(FileA, Row6)
-
-pub const a7 = #(FileA, Row7)
-
-pub const a8 = #(FileA, Row8)
-
-pub const b1 = #(FileB, Row1)
-
-pub const b2 = #(FileB, Row2)
-
-pub const b3 = #(FileB, Row3)
-
-pub const b4 = #(FileB, Row4)
-
-pub const b5 = #(FileB, Row5)
-
-pub const b6 = #(FileB, Row6)
-
-pub const b7 = #(FileB, Row7)
-
-pub const b8 = #(FileB, Row8)
-
-pub const c1 = #(FileC, Row1)
-
-pub const c2 = #(FileC, Row2)
-
-pub const c3 = #(FileC, Row3)
-
-pub const c4 = #(FileC, Row4)
-
-pub const c5 = #(FileC, Row5)
-
-pub const c6 = #(FileC, Row6)
-
-pub const c7 = #(FileC, Row7)
-
-pub const c8 = #(FileC, Row8)
-
-pub const d1 = #(FileD, Row1)
-
-pub const d2 = #(FileD, Row2)
-
-pub const d3 = #(FileD, Row3)
-
-pub const d4 = #(FileD, Row4)
-
-pub const d5 = #(FileD, Row5)
-
-pub const d6 = #(FileD, Row6)
-
-pub const d7 = #(FileD, Row7)
-
-pub const d8 = #(FileD, Row8)
-
-pub const e1 = #(FileE, Row1)
-
-pub const e2 = #(FileE, Row2)
-
-pub const e3 = #(FileE, Row3)
-
-pub const e4 = #(FileE, Row4)
-
-pub const e5 = #(FileE, Row5)
-
-pub const e6 = #(FileE, Row6)
-
-pub const e7 = #(FileE, Row7)
-
-pub const e8 = #(FileE, Row8)
-
-pub const f1 = #(FileF, Row1)
-
-pub const f2 = #(FileF, Row2)
-
-pub const f3 = #(FileF, Row3)
-
-pub const f4 = #(FileF, Row4)
-
-pub const f5 = #(FileF, Row5)
-
-pub const f6 = #(FileF, Row6)
-
-pub const f7 = #(FileF, Row7)
-
-pub const f8 = #(FileF, Row8)
-
-pub const g1 = #(FileG, Row1)
-
-pub const g2 = #(FileG, Row2)
-
-pub const g3 = #(FileG, Row3)
-
-pub const g4 = #(FileG, Row4)
-
-pub const g5 = #(FileG, Row5)
-
-pub const g6 = #(FileG, Row6)
-
-pub const g7 = #(FileG, Row7)
-
-pub const g8 = #(FileG, Row8)
-
-pub const h1 = #(FileH, Row1)
-
-pub const h2 = #(FileH, Row2)
-
-pub const h3 = #(FileH, Row3)
-
-pub const h4 = #(FileH, Row4)
-
-pub const h5 = #(FileH, Row5)
-
-pub const h6 = #(FileH, Row6)
-
-pub const h7 = #(FileH, Row7)
-
-pub const h8 = #(FileH, Row8)
