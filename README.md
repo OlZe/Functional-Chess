@@ -9,6 +9,15 @@ The API is minimal and easy to use. Refer to the documentation.
 
 ## Development
 
+To run tests:
+
 ```sh
-gleam test  # Run the tests
+$ gleam test
+```
+
+To rebuild docs:
+
+```sh
+$ gleam docs build
+$ cp -R ./build/dev/docs/chess ./docs
 ```
