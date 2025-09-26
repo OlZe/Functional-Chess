@@ -1,4 +1,4 @@
-//// The main module of this chess package is responsible for the public facing API
+//// Refer to the [README](./index.html) for an introduction and some example code.
 
 import gleam/bool
 import gleam/dict

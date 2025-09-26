@@ -2,15 +2,13 @@
 
 > ⚠️🛠️ This project is a work in progress! As of now there are no releases of any kind.
 
-This is the game of chess implemented in [Gleam](https://gleam.run/) using a purely functional programming paradigm. Functionality is ensured using unit tests.
+This is the game of chess implemented in [Gleam](https://gleam.run/) using a purely functional programming paradigm. Functionality is ensured through unit tests.
 
 This project has no UI or I/O. This is purely just a library to be used by other code to play chess through the public facing types/function APIs.
 
-The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess/).
+The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess/chess.html).
 
 ## Features
-
-Features marked incomplete are still being worked on.
 
 - [x] Start in standard starting position
 - [x] Move the figures just like in a real game
@@ -23,9 +21,11 @@ Features marked incomplete are still being worked on.
 - [ ] Castling
 - [ ] En passant
 
+Features marked incomplete are still being worked on.
+
 ## Example Usage
 
-This example showcases Gleam code, though the project may be used with any Erlang or JavaScript runtime.
+This example showcases Gleam code, though the project may be used with any Erlang or JavaScript runtime through Gleam's toolchain.
 
 ```gleam
 import chess
@@ -61,7 +61,7 @@ pub fn main() {
 
 Unit tests `gleam test` are automatically executed on push.
 
-The [online documentation](https://olze.github.io/Functional-Chess/) is built and published automatically on push.
+The [online documentation](https://olze.github.io/Functional-Chess/chess.html) is built and published automatically on push.
 
 ## Development
 
