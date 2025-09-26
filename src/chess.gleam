@@ -13,11 +13,11 @@ import gleam/set
 /// 
 /// Use [`new_game`](#new_game) to generate.
 pub type Game {
-  Game(board: Board, state: GameState)
+  Game(board: Board, state: GameStatus)
 }
 
 /// Represents if the game is won/lost/tied or still ongoing.
-pub type GameState {
+pub type GameStatus {
   Checkmated(winner: Player)
   Forfeited(winner: Player)
   Stalemated
@@ -25,7 +25,7 @@ pub type GameState {
 }
 
 /// Represents an error that may be returned when making or requesting players moves.
-pub type Error {
+pub type MoveError {
   GameAlreadyOver
   SelectedFigureDoesntExist
   SelectedFigureIsNotFriendly
@@ -91,17 +91,17 @@ pub type Row {
   Row8
 }
 
+/// Represents a chess move by the player.
+/// 
+/// To be used in [`player_move`](#player_move).
+pub type Move {
+  MoveFigure(from: Coordinate, to: Coordinate)
+  Forfeit
+}
+
 /// Creates a new game in the standard starting chess position.
 pub fn new_game() -> Game {
   Game(board: board_new(), state: WaitingOnNextMove(White))
-}
-
-/// Represents a chess move by the player.
-/// 
-/// To be used with [`player_move`](#player_move).
-pub type PlayerMove {
-  MoveFigure(from: Coordinate, to: Coordinate)
-  Forfeit
 }
 
 /// Process a chess move and return the new state.
@@ -109,8 +109,8 @@ pub type PlayerMove {
 /// To get a list of legal figure moves use [`get_legal_moves`](#get_lega_moves).
 pub fn player_move(
   game game: Game,
-  move player_move: PlayerMove,
-) -> Result(Game, Error) {
+  move player_move: Move,
+) -> Result(Game, MoveError) {
   case game.state {
     Checkmated(_) -> Error(GameAlreadyOver)
     Forfeited(_) -> Error(GameAlreadyOver)
@@ -171,7 +171,7 @@ pub fn player_move(
 pub fn get_legal_moves(
   game game: Game,
   figure coord: Coordinate,
-) -> Result(set.Set(Coordinate), Error) {
+) -> Result(set.Set(Coordinate), MoveError) {
   case game.state {
     Checkmated(_) -> Error(GameAlreadyOver)
     Forfeited(_) -> Error(GameAlreadyOver)
@@ -219,7 +219,7 @@ fn get_legal_moves_on_arbitrary_board(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
-) -> Result(set.Set(Coordinate), Error) {
+) -> Result(set.Set(Coordinate), MoveError) {
   use moves <- result.try(get_unchecked_moves(board, coord, moving_player))
 
   // Make sure the player is not in check after his move
@@ -271,7 +271,7 @@ fn get_unchecked_moves(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
-) -> Result(set.Set(Coordinate), Error) {
+) -> Result(set.Set(Coordinate), MoveError) {
   let selected_figure =
     board_get(board, coord)
     |> option.to_result(SelectedFigureDoesntExist)
