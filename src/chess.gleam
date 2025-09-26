@@ -128,6 +128,8 @@ pub fn forfeit(game game: Game) -> Result(Game, Error) {
 /// 
 /// To get a list of legal figure moves use [`get_legal_moves`](#get_legal_moves).
 /// 
+/// To forfeit the game use [`forfeit`](#forfeit).
+/// 
 /// Errors if the provided move is not legal or the game was already over.
 pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
   case game.state {
