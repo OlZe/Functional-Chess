@@ -201,8 +201,9 @@ pub fn player_move(
       use <- bool.guard(when: !is_legal, return: Error(PlayerMoveIsIllegal))
 
       // Do the move
+      // If this errors, then the previous legality verification of the move seriously malfunctioned.
       let assert Ok(new_board) = board_move(game.board, move)
-        as "move has been checked for legality"
+        as critical_error_text
 
       // Check if game ended
       let new_status = {
@@ -306,8 +307,8 @@ fn get_legal_moves_on_arbitrary_board(
   moves
   |> set.filter(fn(move) {
     // Simulate move, then check if moving_player is still in check
-    let assert Ok(future_board) = board_move(board, move)
-      as "get_unchecked_moves should never return moves that go from an empty square"
+    // If this errors, then the previous determination of moves has seriously malfunctioned.
+    let assert Ok(future_board) = board_move(board, move) as critical_error_text
     !is_in_check(future_board, moving_player)
   })
   |> Ok
@@ -987,3 +988,8 @@ pub const coord_h7 = Coordinate(file: FileH, row: Row7)
 
 /// Short hand for the square H8
 pub const coord_h8 = Coordinate(file: FileH, row: Row8)
+
+const critical_error_text = "Critical internal error:\n"
+  <> "Please open an issue at https://github.com/OlZe/Functional-Chess with a detailled description.\n"
+  <> "If you see this message then this likely means, that something about this package's logic is incorrect."
+  <> "Sorry for the inconvience."
