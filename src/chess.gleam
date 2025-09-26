@@ -1,6 +1,5 @@
 //// The main module of this chess package is responsible for the public facing API
 
-//import chess/coordinate.{type Coordinate} as coord
 import gleam/bool
 import gleam/dict
 import gleam/int
@@ -10,12 +9,14 @@ import gleam/order
 import gleam/result
 import gleam/set
 
-/// Represents entire game state
+/// Represents entire game state.
+/// 
+/// Use [`new_game`](#new_game) to generate.
 pub type Game {
   Game(board: Board, state: GameState)
 }
 
-/// Represents if the game is won/lost/tied or still ongoing
+/// Represents if the game is won/lost/tied or still ongoing.
 pub type GameState {
   Checkmated(winner: Player)
   Forfeited(winner: Player)
@@ -23,12 +24,7 @@ pub type GameState {
   WaitingOnNextMove(next_player: Player)
 }
 
-/// Creates a new game in the standard starting chess position.
-pub fn new_game() -> Game {
-  Game(board: board_new(), state: WaitingOnNextMove(White))
-}
-
-/// Represents an error that may be returned by any of the public functions
+/// Represents an error that may be returned when making or requesting players moves.
 pub type Error {
   GameAlreadyOver
   SelectedFigureDoesntExist
@@ -36,7 +32,7 @@ pub type Error {
   SelectedFigureCantGoThere
 }
 
-/// Represents all figure positions on a chess board
+/// Represents all figure positions on a chess board.
 pub type Board {
   Board(
     white_king: Coordinate,
@@ -61,11 +57,15 @@ pub type Player {
   Black
 }
 
-/// Represents a coordinate pointing to a square on the chess board
+/// Represents a coordinate pointing to a square on the chess board.
+/// 
+/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference coordinates.
 pub type Coordinate =
   #(File, Row)
 
 /// Represents a file (up/down line of squares) of a chess board.
+/// 
+/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference coordinates.
 pub type File {
   FileA
   FileB
@@ -78,6 +78,8 @@ pub type File {
 }
 
 /// Represents a row (left/right line of squares) of a chess board.
+/// 
+/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference coordinates.
 pub type Row {
   Row1
   Row2
@@ -89,15 +91,22 @@ pub type Row {
   Row8
 }
 
-/// Represents a chess move by the player
+/// Creates a new game in the standard starting chess position.
+pub fn new_game() -> Game {
+  Game(board: board_new(), state: WaitingOnNextMove(White))
+}
+
+/// Represents a chess move by the player.
+/// 
+/// To be used with [`player_move`](#player_move).
 pub type PlayerMove {
   MoveFigure(from: Coordinate, to: Coordinate)
   Forfeit
 }
 
-/// Process a chess `move` and return the new state.
+/// Process a chess move and return the new state.
 /// 
-/// To get a list of legal figure moves use `chess.get_legal_moves`
+/// To get a list of legal figure moves use [`get_legal_moves`](#get_lega_moves).
 pub fn player_move(
   game game: Game,
   move player_move: PlayerMove,
@@ -158,7 +167,7 @@ pub fn player_move(
 
 /// Return a list of all legal moves from a selected figure.
 /// 
-/// To execute a move use `chess.player_move`
+/// To execute a move use [`player_move`](#player_move).
 pub fn get_legal_moves(
   game game: Game,
   figure coord: Coordinate,
