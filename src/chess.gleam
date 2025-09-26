@@ -16,20 +16,61 @@ pub type Game {
   Game(board: Board, status: GameStatus)
 }
 
-/// Represents if the game is won/lost/tied or still ongoing.
+/// Represents if the game still ongoing or over.
 pub type GameStatus {
-  Checkmated(winner: Player)
-  Forfeited(winner: Player)
-  Stalemated
+  Victory(winner: Player, by: WinCondition)
+  Draw(by: DrawCondition)
   WaitingOnNextMove(next_player: Player)
+}
+
+/// Represents a way of winning the game.
+pub type WinCondition {
+  /// The loser has no legal moves left, while his king is in check.
+  Checkmate
+
+  /// The loser forfeited the game.
+  Forfeit
+}
+
+/// Represents a way of drawing the game
+pub type DrawCondition {
+  /// TODO: not implemented
+  /// 
+  /// Both players agreed to end the game in a draw.
+  MutualAgreement
+
+  /// A player has no legal moves left, while his king is not in check. See [here](https://www.chess.com/terms/draw-chess#stalemate) for more info.
+  Stalemate
+
+  /// TODO: not implemented
+  /// 
+  /// Both players are missing enough figures to checkmate the enemy king. See [here](https://www.chess.com/terms/draw-chess#dead-position) for more info.
+  InsufficientMaterial
+
+  /// TODO: Not implemented
+  /// 
+  /// Both players reached a position where checkmating the enemy king is impossible. See [here](https://www.chess.com/terms/draw-chess#dead-position) here for more info.
+  DeadPosition
+
+  /// TODO: Not implemented
+  /// 
+  /// The same position has been reached three times. See [here](https://www.chess.com/terms/draw-chess#threefold-repetition) for more info.
+  ThreefoldRepition
 }
 
 /// Represents an error that may be returned when using the public functions
 pub type Error {
+  /// Tried making a move while the game is already over.
   GameAlreadyOver
+
+  /// Tried moving a figure from a coordinate which is empty.
   SelectedFigureDoesntExist
+
+  /// Tried moving a figure which doesn't belong to the player.
   SelectedFigureIsNotFriendly
-  SelectedFigureCantGoThere
+
+  /// Tried making a move which is not legal.
+  IllegalMove
 }
 
 /// Represents all figure positions on a chess board.
@@ -57,7 +98,7 @@ pub type Player {
   Black
 }
 
-/// Represents a coordinate pointing to a square on the chess board.
+/// Represents a coordinate referring to a square on the chess board.
 /// 
 /// Use the provided [`coord_*`](#coord_a1) constants to quickly reference all board coordinates.
 pub type Coordinate {
@@ -112,15 +153,14 @@ pub fn new_game() -> Game {
 /// Errors if the game was already over.
 pub fn forfeit(game game: Game) -> Result(Game, Error) {
   case game.status {
-    Checkmated(_) -> Error(GameAlreadyOver)
-    Forfeited(_) -> Error(GameAlreadyOver)
-    Stalemated -> Error(GameAlreadyOver)
+    Draw(_) -> Error(GameAlreadyOver)
+    Victory(_, _) -> Error(GameAlreadyOver)
     WaitingOnNextMove(next_player: forfeiter) -> {
       let winner = case forfeiter {
         Black -> White
         White -> Black
       }
-      Ok(Game(board: game.board, status: Forfeited(winner:)))
+      Ok(Game(board: game.board, status: Victory(winner:, by: Forfeit)))
     }
   }
 }
@@ -134,9 +174,8 @@ pub fn forfeit(game game: Game) -> Result(Game, Error) {
 /// Errors if the provided move is not legal or the game was already over.
 pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
   case game.status {
-    Checkmated(_) -> Error(GameAlreadyOver)
-    Forfeited(_) -> Error(GameAlreadyOver)
-    Stalemated -> Error(GameAlreadyOver)
+    Draw(_) -> Error(GameAlreadyOver)
+    Victory(_, _) -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
       // Process figure move
       // Check if given move is legal
@@ -145,10 +184,7 @@ pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
         |> set.contains(move)
       }
 
-      use <- bool.guard(
-        when: !is_legal,
-        return: Error(SelectedFigureCantGoThere),
-      )
+      use <- bool.guard(when: !is_legal, return: Error(IllegalMove))
 
       // Do the move
       let new_board = board_move(game.board, move)
@@ -156,9 +192,10 @@ pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
       // Check if game ended
       let new_status = {
         // If there are only kings left, then the game is a stalemate
+        // TODO: this is not entirely correct => implemented proper draw-conditions
         use <- bool.guard(
           when: dict.is_empty(new_board.other_figures),
-          return: Stalemated,
+          return: Draw(by: Stalemate),
         )
 
         let opponent_player = case moving_player {
@@ -173,8 +210,8 @@ pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
         let opponent_is_in_check = is_in_check(new_board, opponent_player)
 
         case opponent_has_no_moves, opponent_is_in_check {
-          True, True -> Checkmated(winner: moving_player)
-          True, False -> Stalemated
+          True, True -> Victory(winner: moving_player, by: Checkmate)
+          True, False -> Draw(by: Stalemate)
           False, _ -> WaitingOnNextMove(opponent_player)
         }
       }
@@ -191,9 +228,8 @@ pub fn get_legal_moves(
   figure coord: Coordinate,
 ) -> Result(set.Set(Move), Error) {
   case game.status {
-    Checkmated(_) -> Error(GameAlreadyOver)
-    Forfeited(_) -> Error(GameAlreadyOver)
-    Stalemated -> Error(GameAlreadyOver)
+    Draw(_) -> Error(GameAlreadyOver)
+    Victory(_, _) -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) ->
       get_legal_moves_on_arbitrary_board(game.board, coord, moving_player)
   }

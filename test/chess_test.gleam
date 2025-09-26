@@ -496,17 +496,14 @@ pub fn get_moves_errors_test() {
       black_king: c.coord_e8,
       other_figures: dict.new(),
     )
-  // Game is checkmate
-  let game1 = c.Game(board, c.Checkmated(White))
+
+  // Game is already won/lost
+  let game1 = c.Game(board, c.Victory(winner: White, by: c.Checkmate))
   assert c.get_legal_moves(game1, c.coord_a1) == Error(c.GameAlreadyOver)
 
-  // Game is forfeit
-  let game2 = c.Game(board, c.Forfeited(White))
+  // Game is already drawn
+  let game2 = c.Game(board, c.Draw(by: c.MutualAgreement))
   assert c.get_legal_moves(game2, c.coord_a1) == Error(c.GameAlreadyOver)
-
-  // Game is stalemate
-  let game3 = c.Game(board, c.Stalemated)
-  assert c.get_legal_moves(game3, c.coord_a1) == Error(c.GameAlreadyOver)
 
   // Select figure which doesn't exist
   let game4 = c.Game(board, c.WaitingOnNextMove(White))
@@ -549,17 +546,14 @@ pub fn player_move_errors_test() {
       other_figures: dict.new(),
     )
   let move = c.StdFigureMove(c.coord_a1, c.coord_a2)
-  // Game already checkmate
-  let game1 = c.Game(board, c.Checkmated(White))
+
+  // Game is already won
+  let game1 = c.Game(board, c.Victory(winner: White, by: c.Checkmate))
   assert c.player_move(game1, move) == Error(c.GameAlreadyOver)
 
-  // Game already forfeit
-  let game2 = c.Game(board, c.Forfeited(White))
+  // Game is already drawn
+  let game2 = c.Game(board, c.Draw(by: c.MutualAgreement))
   assert c.player_move(game2, move) == Error(c.GameAlreadyOver)
-
-  // Game already stalemate
-  let game3 = c.Game(board, c.Stalemated)
-  assert c.player_move(game3, move) == Error(c.GameAlreadyOver)
 }
 
 pub fn player_cannot_check_himself_test() {
@@ -582,19 +576,21 @@ pub fn player_cannot_check_himself_test() {
   assert actual_moves == expected_moves
 }
 
-pub fn stalemate_by_empty_board_test() {
-  let board =
-    c.Board(
-      white_king: c.coord_e1,
-      black_king: c.coord_e8,
-      other_figures: dict.from_list([
-        #(c.coord_e2, #(Pawn, Black)),
-      ]),
-    )
-  let game = c.Game(board, c.WaitingOnNextMove(White))
-  let move = c.StdFigureMove(c.coord_e1, c.coord_e2)
-  let assert Ok(c.Game(_, c.Stalemated)) = c.player_move(game, move)
-}
+// TODO: this should be draw by insufficient material
+// 
+// pub fn stalemate_by_empty_board_test() {
+//   let board =
+//     c.Board(
+//       white_king: c.coord_e1,
+//       black_king: c.coord_e8,
+//       other_figures: dict.from_list([
+//         #(c.coord_e2, #(Pawn, Black)),
+//       ]),
+//     )
+//   let game = c.Game(board, c.WaitingOnNextMove(White))
+//   let move = c.StdFigureMove(c.coord_e1, c.coord_e2)
+//   let assert Ok(c.Game(_, c.Stalemated)) = c.player_move(game, move)
+// }
 
 pub fn stalemate_by_no_moves_left_test() {
   let board =
@@ -608,7 +604,7 @@ pub fn stalemate_by_no_moves_left_test() {
     )
   let game = c.Game(board, c.WaitingOnNextMove(White))
   let move = c.StdFigureMove(c.coord_h5, c.coord_b5)
-  let assert Ok(c.Game(_, c.Stalemated)) = c.player_move(game, move)
+  let assert Ok(c.Game(_, c.Draw(by: c.Stalemate))) = c.player_move(game, move)
 }
 
 pub fn checkmate_test() {
@@ -623,12 +619,13 @@ pub fn checkmate_test() {
     )
   let game = c.Game(board, c.WaitingOnNextMove(White))
   let move = c.StdFigureMove(c.coord_a6, c.coord_a8)
-  let assert Ok(c.Game(_, c.Checkmated(winner: White))) =
+  let assert Ok(c.Game(_, c.Victory(winner: White, by: c.Checkmate))) =
     c.player_move(game, move)
 }
 
 pub fn forfeit_test() {
   let game = c.new_game()
 
-  let assert Ok(c.Game(_, c.Forfeited(winner: Black))) = c.forfeit(game)
+  let assert Ok(c.Game(_, c.Victory(winner: Black, by: c.Forfeit))) =
+    c.forfeit(game)
 }
