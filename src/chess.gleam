@@ -24,8 +24,8 @@ pub type GameStatus {
   WaitingOnNextMove(next_player: Player)
 }
 
-/// Represents an error that may be returned when making or requesting players moves.
-pub type MoveError {
+/// Represents an error that may be returned when using the public functions
+pub type Error {
   GameAlreadyOver
   SelectedFigureDoesntExist
   SelectedFigureIsNotFriendly
@@ -63,7 +63,7 @@ pub type Player {
 pub type Coordinate =
   #(File, Row)
 
-/// Represents a file (up/down line of squares) of a chess board.
+/// Represents a file (vertical line of squares) of a chess board.
 /// 
 /// Use the provided [`coord_*`](#coord_a1) constants to quickly reference coordinates.
 pub type File {
@@ -77,7 +77,7 @@ pub type File {
   FileH
 }
 
-/// Represents a row (left/right line of squares) of a chess board.
+/// Represents a row (horizontal line of squares) of a chess board.
 /// 
 /// Use the provided [`coord_*`](#coord_a1) constants to quickly reference coordinates.
 pub type Row {
@@ -94,9 +94,11 @@ pub type Row {
 /// Represents a chess move by the player.
 /// 
 /// To be used in [`player_move`](#player_move).
+/// 
+/// Use [`get_legal_moves`](#get_legal_moves) to generate.
 pub type Move {
-  MoveFigure(from: Coordinate, to: Coordinate)
-  Forfeit
+  /// Used to move a figure from `from` to `to`
+  StdFigureMove(from: Coordinate, to: Coordinate)
 }
 
 /// Creates a new game in the standard starting chess position.
@@ -104,63 +106,76 @@ pub fn new_game() -> Game {
   Game(board: board_new(), state: WaitingOnNextMove(White))
 }
 
-/// Process a chess move and return the new state.
+/// Forfeit the game to the opposing player.
 /// 
-/// To get a list of legal figure moves use [`get_legal_moves`](#get_lega_moves).
-pub fn player_move(
-  game game: Game,
-  move player_move: Move,
-) -> Result(Game, MoveError) {
+/// Errors if the game was already over.
+pub fn forfeit(game game: Game) -> Result(Game, Error) {
+  case game.state {
+    Checkmated(_) -> Error(GameAlreadyOver)
+    Forfeited(_) -> Error(GameAlreadyOver)
+    Stalemated -> Error(GameAlreadyOver)
+    WaitingOnNextMove(next_player: forfeiter) -> {
+      let winner = case forfeiter {
+        Black -> White
+        White -> Black
+      }
+      Ok(Game(board: game.board, state: Forfeited(winner:)))
+    }
+  }
+}
+
+/// Move a figure and return the new state.
+/// 
+/// To get a list of legal figure moves use [`get_legal_moves`](#get_legal_moves).
+/// 
+/// Errors if the provided move is not legal or the game was already over.
+pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
   case game.state {
     Checkmated(_) -> Error(GameAlreadyOver)
     Forfeited(_) -> Error(GameAlreadyOver)
     Stalemated -> Error(GameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
-      let opponent_player = case moving_player {
-        Black -> White
-        White -> Black
+      // Process figure move
+      // Check if given move is legal
+      let is_legal = {
+        get_all_legal_moves_on_arbitrary_board(game.board, moving_player:)
+        |> set.contains(move)
       }
 
-      case player_move {
-        // Forfeit, return forfeited
-        Forfeit -> Ok(Game(game.board, Forfeited(opponent_player)))
+      use <- bool.guard(
+        when: !is_legal,
+        return: Error(SelectedFigureCantGoThere),
+      )
 
-        // Process figure move
-        MoveFigure(from:, to:) -> {
-          use possible_moves <- result.try(get_legal_moves(game, from))
+      // Do the move
+      let new_board = board_move(game.board, move)
 
-          // Check if given move is legal
-          use <- bool.guard(
-            when: !set.contains(possible_moves, to),
-            return: Error(SelectedFigureCantGoThere),
-          )
+      // Check if game ended
+      let new_state = {
+        // If there are only kings left, then the game is a stalemate
+        use <- bool.guard(
+          when: dict.is_empty(new_board.other_figures),
+          return: Stalemated,
+        )
 
-          // Do the move
-          let new_board = board_move(game.board, from, to)
+        let opponent_player = case moving_player {
+          Black -> White
+          White -> Black
+        }
 
-          // Check if game ended
-          let new_state = {
-            // If there are only kings left, then the game is a stalemate
-            use <- bool.guard(
-              when: dict.is_empty(new_board.other_figures),
-              return: Stalemated,
-            )
+        let opponent_has_no_moves =
+          get_all_legal_moves_on_arbitrary_board(new_board, opponent_player)
+          |> set.is_empty()
 
-            let opponent_has_no_moves =
-              get_all_legal_moves_on_arbitrary_board(new_board, opponent_player)
-              |> set.is_empty()
+        let opponent_is_in_check = is_in_check(new_board, opponent_player)
 
-            let opponent_is_in_check = is_in_check(new_board, opponent_player)
-
-            case opponent_has_no_moves, opponent_is_in_check {
-              True, True -> Checkmated(winner: moving_player)
-              True, False -> Stalemated
-              False, _ -> WaitingOnNextMove(opponent_player)
-            }
-          }
-          Ok(Game(new_board, new_state))
+        case opponent_has_no_moves, opponent_is_in_check {
+          True, True -> Checkmated(winner: moving_player)
+          True, False -> Stalemated
+          False, _ -> WaitingOnNextMove(opponent_player)
         }
       }
+      Ok(Game(new_board, new_state))
     }
   }
 }
@@ -171,7 +186,7 @@ pub fn player_move(
 pub fn get_legal_moves(
   game game: Game,
   figure coord: Coordinate,
-) -> Result(set.Set(Coordinate), MoveError) {
+) -> Result(set.Set(Move), Error) {
   case game.state {
     Checkmated(_) -> Error(GameAlreadyOver)
     Forfeited(_) -> Error(GameAlreadyOver)
@@ -185,7 +200,7 @@ pub fn get_legal_moves(
 fn get_all_legal_moves_on_arbitrary_board(
   board board: Board,
   moving_player moving_player: Player,
-) -> set.Set(#(Coordinate, Coordinate)) {
+) -> set.Set(Move) {
   let king = case moving_player {
     White -> board.white_king
     Black -> board.black_king
@@ -205,7 +220,6 @@ fn get_all_legal_moves_on_arbitrary_board(
     |> set.map(fn(from) {
       get_legal_moves_on_arbitrary_board(board, from, moving_player)
       |> result.unwrap(set.new())
-      |> set.map(fn(to) { #(from, to) })
     })
     // Flatten
     |> set.fold(set.new(), set.union)
@@ -219,15 +233,14 @@ fn get_legal_moves_on_arbitrary_board(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
-) -> Result(set.Set(Coordinate), MoveError) {
+) -> Result(set.Set(Move), Error) {
   use moves <- result.try(get_unchecked_moves(board, coord, moving_player))
 
   // Make sure the player is not in check after his move
   moves
-  |> set.filter(fn(to) {
-    let from = coord
+  |> set.filter(fn(move) {
     // Simulate move, then check if moving_player is still in check
-    let future_board = board_move(board, from, to)
+    let future_board = board_move(board, move)
     !is_in_check(future_board, moving_player)
   })
   |> Ok
@@ -260,8 +273,12 @@ fn is_in_check(board board: Board, player attackee: Player) -> Bool {
     |> result.map(set.to_list)
     |> result.unwrap([])
   })
-  // Check if any attacker move goes to attackee king
-  |> list.contains(attackee_king)
+  // Check if any move goes to attacks the attackee's king
+  |> list.any(fn(move) {
+    case move {
+      StdFigureMove(_, to:) -> to == attackee_king
+    }
+  })
 }
 
 /// Retrieve all moves of a given figure.
@@ -271,7 +288,7 @@ fn get_unchecked_moves(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
-) -> Result(set.Set(Coordinate), MoveError) {
+) -> Result(set.Set(Move), Error) {
   let selected_figure =
     board_get(board, coord)
     |> option.to_result(SelectedFigureDoesntExist)
@@ -300,7 +317,7 @@ fn get_moves_for_pawn(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-) -> set.Set(Coordinate) {
+) -> set.Set(Move) {
   let up_direction = case attacker {
     White -> 1
     Black -> -1
@@ -371,6 +388,7 @@ fn get_moves_for_pawn(
   let all_moves =
     [up, up_up, up_left, up_right]
     |> option.values
+    |> list.map(fn(to) { StdFigureMove(coord, to) })
     |> set.from_list
 
   all_moves
@@ -383,13 +401,14 @@ fn get_moves_for_king(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-) -> set.Set(Coordinate) {
+) -> set.Set(Move) {
   [#(0, 1), #(1, 1), #(1, 0), #(1, -1), #(0, -1), #(-1, -1), #(-1, 0), #(-1, 1)]
   |> set.from_list()
   |> set.map(JumpTo(origin: coord, offset: _, attacker:))
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
+  |> set.map(fn(to) { StdFigureMove(coord, to) })
 }
 
 /// Get all possible destinations of a knight
@@ -399,7 +418,7 @@ fn get_moves_for_knight(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-) -> set.Set(Coordinate) {
+) -> set.Set(Move) {
   [
     #(1, 2),
     #(2, 1),
@@ -415,6 +434,7 @@ fn get_moves_for_knight(
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
+  |> set.map(fn(to) { StdFigureMove(coord, to) })
 }
 
 /// Get all possible destinations of a rook
@@ -424,13 +444,14 @@ fn get_moves_for_rook(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-) -> set.Set(Coordinate) {
+) -> set.Set(Move) {
   [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
+  |> set.map(fn(to) { StdFigureMove(coord, to) })
 }
 
 /// Get all possible destinations of a bishop
@@ -440,13 +461,14 @@ fn get_moves_for_bishop(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-) -> set.Set(Coordinate) {
+) -> set.Set(Move) {
   [#(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
+  |> set.map(fn(to) { StdFigureMove(coord, to) })
 }
 
 /// Get all possible destinations of a queen
@@ -456,13 +478,14 @@ fn get_moves_for_queen(
   board board: Board,
   coord coord: Coordinate,
   attacking_player attacker: Player,
-) -> set.Set(Coordinate) {
+) -> set.Set(Move) {
   [#(0, 1), #(1, 0), #(0, -1), #(-1, 0), #(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
+  |> set.map(fn(to) { StdFigureMove(coord, to) })
 }
 
 /// Used to describe a standard figure movement possibility
@@ -596,41 +619,41 @@ fn board_get(
   }
 }
 
-/// Moves a figure from `from` to `to` on `board`.
+/// Moves a figure on the `board`.
 /// 
-/// Peforms no checking wether `from` and `to` is a legal chess move.
+/// Peforms no checking wether the provided move is legal
 /// 
-/// If `from` is pointing to an empty square, then nothing happens
-fn board_move(
-  board board: Board,
-  from from: Coordinate,
-  to to: Coordinate,
-) -> Board {
-  case board {
-    Board(white_king:, black_king:, other_figures:) if white_king == from ->
-      Board(
-        white_king: to,
-        black_king:,
-        other_figures: dict.delete(other_figures, to),
-      )
-    Board(white_king:, black_king:, other_figures:) if black_king == from ->
-      Board(
-        white_king:,
-        black_king: to,
-        other_figures: dict.delete(other_figures, to),
-      )
-    Board(white_king:, black_king:, other_figures:) -> {
-      let moving_figure = dict.get(other_figures, from)
-      case moving_figure {
-        Error(_) -> board
-        Ok(moving_figure) ->
+/// If the move is happening from an empty square, then nothing happens
+fn board_move(board board: Board, move move: Move) -> Board {
+  case move {
+    StdFigureMove(from:, to:) -> {
+      case board {
+        Board(white_king:, black_king:, other_figures:) if white_king == from ->
+          Board(
+            white_king: to,
+            black_king:,
+            other_figures: dict.delete(other_figures, to),
+          )
+        Board(white_king:, black_king:, other_figures:) if black_king == from ->
           Board(
             white_king:,
-            black_king:,
-            other_figures: other_figures
-              |> dict.delete(from)
-              |> dict.insert(to, moving_figure),
+            black_king: to,
+            other_figures: dict.delete(other_figures, to),
           )
+        Board(white_king:, black_king:, other_figures:) -> {
+          let moving_figure = dict.get(other_figures, from)
+          case moving_figure {
+            Error(_) -> board
+            Ok(moving_figure) ->
+              Board(
+                white_king:,
+                black_king:,
+                other_figures: other_figures
+                  |> dict.delete(from)
+                  |> dict.insert(to, moving_figure),
+              )
+          }
+        }
       }
     }
   }
