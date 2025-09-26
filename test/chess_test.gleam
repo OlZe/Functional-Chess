@@ -499,21 +499,23 @@ pub fn get_moves_errors_test() {
 
   // Game is already won/lost
   let game1 = c.Game(board, c.Victory(winner: White, by: c.Checkmate))
-  assert c.get_legal_moves(game1, c.coord_a1) == Error(c.GameAlreadyOver)
+  assert c.get_legal_moves(game1, c.coord_a1)
+    == Error(c.GetMovesWhilGameAlreadyOver)
 
   // Game is already drawn
   let game2 = c.Game(board, c.Draw(by: c.MutualAgreement))
-  assert c.get_legal_moves(game2, c.coord_a1) == Error(c.GameAlreadyOver)
+  assert c.get_legal_moves(game2, c.coord_a1)
+    == Error(c.GetMovesWhilGameAlreadyOver)
 
   // Select figure which doesn't exist
   let game4 = c.Game(board, c.WaitingOnNextMove(White))
   assert c.get_legal_moves(game4, c.coord_b2)
-    == Error(c.SelectedFigureDoesntExist)
+    == Error(c.GetMovesWithInvalidFigure(c.SelectedFigureDoesntExist))
 
   // Select figure which isn't friendly
   let game5 = c.Game(board, c.WaitingOnNextMove(Black))
   assert c.get_legal_moves(game5, c.coord_a1)
-    == Error(c.SelectedFigureIsNotFriendly)
+    == Error(c.GetMovesWithInvalidFigure(c.SelectedFigureIsNotFriendly))
 }
 
 pub fn player_move_test() {
@@ -549,11 +551,11 @@ pub fn player_move_errors_test() {
 
   // Game is already won
   let game1 = c.Game(board, c.Victory(winner: White, by: c.Checkmate))
-  assert c.player_move(game1, move) == Error(c.GameAlreadyOver)
+  assert c.player_move(game1, move) == Error(c.PlayerMoveWhileGameAlreadyOver)
 
   // Game is already drawn
   let game2 = c.Game(board, c.Draw(by: c.MutualAgreement))
-  assert c.player_move(game2, move) == Error(c.GameAlreadyOver)
+  assert c.player_move(game2, move) == Error(c.PlayerMoveWhileGameAlreadyOver)
 }
 
 pub fn player_cannot_check_himself_test() {

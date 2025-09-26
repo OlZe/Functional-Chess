@@ -58,21 +58,6 @@ pub type DrawCondition {
   ThreefoldRepition
 }
 
-/// Represents an error that may be returned when using the public functions.
-pub type Error {
-  /// Tried making a move while the game is already over.
-  GameAlreadyOver
-
-  /// Tried moving a figure from a coordinate which is empty.
-  SelectedFigureDoesntExist
-
-  /// Tried moving a figure which doesn't belong to the player.
-  SelectedFigureIsNotFriendly
-
-  /// Tried making a move which is not legal.
-  IllegalMove
-}
-
 /// Represents all figure positions on a chess board.
 pub type Board {
   Board(
@@ -143,6 +128,15 @@ pub type Move {
   StdFigureMove(from: Coordinate, to: Coordinate)
 }
 
+/// Represents an error when trying to select a figure
+pub type SelectFigureError {
+  /// Tried selecting a figure from a coordinate which points to an empty square.
+  SelectedFigureDoesntExist
+
+  /// Tried selecting a figure which doesn't belong to the player.
+  SelectedFigureIsNotFriendly
+}
+
 /// Creates a new game in the standard starting chess position.
 pub fn new_game() -> Game {
   Game(board: board_new(), status: WaitingOnNextMove(White))
@@ -151,10 +145,10 @@ pub fn new_game() -> Game {
 /// Forfeit the game to the opposing player.
 /// 
 /// Errors if the game was already over.
-pub fn forfeit(game game: Game) -> Result(Game, Error) {
+pub fn forfeit(game game: Game) -> Result(Game, Nil) {
   case game.status {
-    Draw(_) -> Error(GameAlreadyOver)
-    Victory(_, _) -> Error(GameAlreadyOver)
+    Draw(_) -> Error(Nil)
+    Victory(_, _) -> Error(Nil)
     WaitingOnNextMove(next_player: forfeiter) -> {
       let winner = case forfeiter {
         Black -> White
@@ -165,6 +159,18 @@ pub fn forfeit(game game: Game) -> Result(Game, Error) {
   }
 }
 
+/// Represents an error returned by [`player_move`](#player_move).
+pub type PlayerMoveError {
+  /// Tried making a move while the game is already over.
+  PlayerMoveWhileGameAlreadyOver
+
+  /// Tried making a move with an invalid figure. See [`reason`](#SelectFigureError) for extra info.
+  PlayerMoveWithInvalidFigure(reason: SelectFigureError)
+
+  /// Tried making a move which is not legal.
+  PlayerMoveIsIllegal
+}
+
 /// Move a figure and return the new state.
 /// 
 /// To get a list of legal figure moves use [`get_legal_moves`](#get_legal_moves).
@@ -172,22 +178,31 @@ pub fn forfeit(game game: Game) -> Result(Game, Error) {
 /// To forfeit the game use [`forfeit`](#forfeit).
 /// 
 /// Errors if the provided move is not legal or the game was already over.
-pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
+pub fn player_move(
+  game game: Game,
+  move move: Move,
+) -> Result(Game, PlayerMoveError) {
   case game.status {
-    Draw(_) -> Error(GameAlreadyOver)
-    Victory(_, _) -> Error(GameAlreadyOver)
+    Draw(_) -> Error(PlayerMoveWhileGameAlreadyOver)
+    Victory(_, _) -> Error(PlayerMoveWhileGameAlreadyOver)
     WaitingOnNextMove(moving_player) -> {
       // Process figure move
       // Check if given move is legal
-      let is_legal = {
-        get_all_legal_moves_on_arbitrary_board(game.board, moving_player:)
-        |> set.contains(move)
-      }
+      let legal_moves =
+        get_legal_moves_on_arbitrary_board(
+          game.board,
+          move.from,
+          moving_player:,
+        )
+        |> result.map_error(fn(e) { PlayerMoveWithInvalidFigure(reason: e) })
 
-      use <- bool.guard(when: !is_legal, return: Error(IllegalMove))
+      use legal_moves <- result.try(legal_moves)
+      let is_legal = set.contains(legal_moves, move)
+      use <- bool.guard(when: !is_legal, return: Error(PlayerMoveIsIllegal))
 
       // Do the move
-      let new_board = board_move(game.board, move)
+      let assert Ok(new_board) = board_move(game.board, move)
+        as "move has been checked for legality"
 
       // Check if game ended
       let new_status = {
@@ -220,6 +235,15 @@ pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
   }
 }
 
+/// Represents an error returned by [`get_legal_moves`](#get_legal_moves).
+pub type GetMovesError {
+  /// Tried getting moves while the game is already over.
+  GetMovesWhilGameAlreadyOver
+
+  /// Tried making a move with an invalid figure. See [`reason`](#SelectFigureError) for extra info.
+  GetMovesWithInvalidFigure(reason: SelectFigureError)
+}
+
 /// Return a list of all legal moves from a selected figure.
 /// 
 /// To execute a move use [`player_move`](#player_move).
@@ -228,12 +252,13 @@ pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
 pub fn get_legal_moves(
   game game: Game,
   figure coord: Coordinate,
-) -> Result(set.Set(Move), Error) {
+) -> Result(set.Set(Move), GetMovesError) {
   case game.status {
-    Draw(_) -> Error(GameAlreadyOver)
-    Victory(_, _) -> Error(GameAlreadyOver)
+    Draw(_) -> Error(GetMovesWhilGameAlreadyOver)
+    Victory(_, _) -> Error(GetMovesWhilGameAlreadyOver)
     WaitingOnNextMove(moving_player) ->
       get_legal_moves_on_arbitrary_board(game.board, coord, moving_player)
+      |> result.map_error(fn(e) { GetMovesWithInvalidFigure(reason: e) })
   }
 }
 
@@ -269,19 +294,20 @@ fn get_all_legal_moves_on_arbitrary_board(
 }
 
 /// Retrieve all legal moves of a given figure.
-/// Unlike `get_legal_moves` this doesn't require a full `Game` variable
+/// Unlike `get_legal_moves` this doesn't require a `Game` variable
 fn get_legal_moves_on_arbitrary_board(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
-) -> Result(set.Set(Move), Error) {
+) -> Result(set.Set(Move), SelectFigureError) {
   use moves <- result.try(get_unchecked_moves(board, coord, moving_player))
 
-  // Make sure the player is not in check after his move
+  // Filter moves, that leave the player in check, out
   moves
   |> set.filter(fn(move) {
     // Simulate move, then check if moving_player is still in check
-    let future_board = board_move(board, move)
+    let assert Ok(future_board) = board_move(board, move)
+      as "get_unchecked_moves should never return moves that go from an empty square"
     !is_in_check(future_board, moving_player)
   })
   |> Ok
@@ -329,7 +355,7 @@ fn get_unchecked_moves(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
-) -> Result(set.Set(Move), Error) {
+) -> Result(set.Set(Move), SelectFigureError) {
   let selected_figure =
     board_get(board, coord)
     |> option.to_result(SelectedFigureDoesntExist)
@@ -662,38 +688,39 @@ fn board_get(
 
 /// Moves a figure on the `board`.
 /// 
-/// Peforms no checking wether the provided move is legal
+/// Peforms no checking wether the provided move is legal. Overrides other figures at the move's destination.
 /// 
-/// If the move is happening from an empty square, then nothing happens
-fn board_move(board board: Board, move move: Move) -> Board {
+/// Errors if there is no figure to move.
+fn board_move(board board: Board, move move: Move) -> Result(Board, Nil) {
   case move {
     StdFigureMove(from:, to:) -> {
       case board {
+        // Move white king
         Board(white_king:, black_king:, other_figures:) if white_king == from ->
-          Board(
+          Ok(Board(
             white_king: to,
             black_king:,
             other_figures: dict.delete(other_figures, to),
-          )
+          ))
+
+        // Move black king
         Board(white_king:, black_king:, other_figures:) if black_king == from ->
-          Board(
+          Ok(Board(
             white_king:,
             black_king: to,
             other_figures: dict.delete(other_figures, to),
-          )
+          ))
+
+        // Try move another piece
         Board(white_king:, black_king:, other_figures:) -> {
-          let moving_figure = dict.get(other_figures, from)
-          case moving_figure {
-            Error(_) -> board
-            Ok(moving_figure) ->
-              Board(
-                white_king:,
-                black_king:,
-                other_figures: other_figures
-                  |> dict.delete(from)
-                  |> dict.insert(to, moving_figure),
-              )
-          }
+          use moving_figure <- result.try(dict.get(other_figures, from))
+          Ok(Board(
+            white_king:,
+            black_king:,
+            other_figures: other_figures
+              |> dict.delete(from)
+              |> dict.insert(to, moving_figure),
+          ))
         }
       }
     }
