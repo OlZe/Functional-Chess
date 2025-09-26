@@ -165,6 +165,21 @@ pub fn forfeit(game game: Game) -> Result(Game, Nil) {
   }
 }
 
+/// Draw the game through mutual agreement of both players.
+/// 
+/// Note: The user of this package is responsible for coordinating the actual
+/// draw agreement between both players.
+/// 
+/// Errors if the game was already over.
+pub fn draw(game game: Game) -> Result(Game, Nil) {
+  case game.status {
+    GameEnded(_) -> Error(Nil)
+    GameOngoing(_) -> {
+      Ok(Game(board: game.board, status: GameEnded(Draw(by: MutualAgreement))))
+    }
+  }
+}
+
 /// Represents an error returned by [`player_move`](#player_move).
 pub type PlayerMoveError {
   /// Tried making a move while the game is already over.

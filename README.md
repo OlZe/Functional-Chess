@@ -25,7 +25,7 @@ The API is minimal and easy to use. Refer to the [online documentation](https://
   - [x] by checkmate
   - [x] by player forfeit
 - [ ] Draw the game<sup>1</sup>
-  - [ ] by mutual player agreement
+  - [x] by mutual player agreement
   - [x] by [stalemate](https://www.chess.com/terms/draw-chess#stalemate)
   - [x] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
   - [ ] by a [dead position](https://www.chess.com/terms/draw-chess#dead-position)

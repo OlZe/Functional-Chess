@@ -622,6 +622,13 @@ pub fn forfeit_test() {
     c.forfeit(game)
 }
 
+pub fn draw_through_mutual_agreement_test() {
+  let game = c.new_game()
+
+  let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.MutualAgreement)))) =
+    c.draw(game)
+}
+
 pub fn insufficient_material_by_king_vs_king_test() {
   let board =
     c.Board(
