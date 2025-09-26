@@ -27,7 +27,7 @@ The API is minimal and easy to use. Refer to the [online documentation](https://
 - [ ] Draw the game<sup>1</sup>
   - [ ] by mutual player agreement
   - [x] by [stalemate](https://www.chess.com/terms/draw-chess#stalemate)
-  - [ ] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
+  - [x] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
   - [ ] by a [dead position](https://www.chess.com/terms/draw-chess#dead-position)
   - [ ] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
 

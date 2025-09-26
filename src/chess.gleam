@@ -22,9 +22,16 @@ pub type Game {
 
 /// Represents if the is game still ongoing or over.
 pub type GameStatus {
+  /// See [`info`](#EndCondition) to see how the game ended.
+  GameEnded(info: EndCondition)
+
+  /// Waiting for the next move by `next_player`
+  GameOngoing(next_player: Player)
+}
+
+pub type EndCondition {
   Victory(winner: Player, by: WinCondition)
   Draw(by: DrawCondition)
-  WaitingOnNextMove(next_player: Player)
 }
 
 /// Represents a way of winning the game.
@@ -46,8 +53,6 @@ pub type DrawCondition {
   /// A player has no legal moves left, while his king is not in check. See [here](https://www.chess.com/terms/draw-chess#stalemate) for more info.
   Stalemate
 
-  /// TODO: not implemented
-  /// 
   /// Both players are missing enough figures to checkmate the enemy king. See [here](https://www.chess.com/terms/draw-chess#dead-position) for more info.
   InsufficientMaterial
 
@@ -140,7 +145,7 @@ pub type SelectFigureError {
 
 /// Creates a new game in the standard starting chess position.
 pub fn new_game() -> Game {
-  Game(board: board_new(), status: WaitingOnNextMove(White))
+  Game(board: board_new(), status: GameOngoing(White))
 }
 
 /// Forfeit the game to the opposing player.
@@ -148,14 +153,16 @@ pub fn new_game() -> Game {
 /// Errors if the game was already over.
 pub fn forfeit(game game: Game) -> Result(Game, Nil) {
   case game.status {
-    Draw(_) -> Error(Nil)
-    Victory(_, _) -> Error(Nil)
-    WaitingOnNextMove(next_player: forfeiter) -> {
+    GameEnded(_) -> Error(Nil)
+    GameOngoing(next_player: forfeiter) -> {
       let winner = case forfeiter {
         Black -> White
         White -> Black
       }
-      Ok(Game(board: game.board, status: Victory(winner:, by: Forfeit)))
+      Ok(Game(
+        board: game.board,
+        status: GameEnded(Victory(winner:, by: Forfeit)),
+      ))
     }
   }
 }
@@ -184,10 +191,10 @@ pub fn player_move(
   move move: Move,
 ) -> Result(Game, PlayerMoveError) {
   case game.status {
-    Draw(_) -> Error(PlayerMoveWhileGameAlreadyOver)
-    Victory(_, _) -> Error(PlayerMoveWhileGameAlreadyOver)
-    WaitingOnNextMove(moving_player) -> {
+    GameEnded(_) -> Error(PlayerMoveWhileGameAlreadyOver)
+    GameOngoing(moving_player) -> {
       // Process figure move
+
       // Check if given move is legal
       let legal_moves =
         get_legal_moves_on_arbitrary_board(
@@ -208,28 +215,13 @@ pub fn player_move(
 
       // Check if game ended
       let new_status = {
-        // If there are only kings left, then the game is a stalemate
-        // TODO: this is not entirely correct => implemented proper draw-conditions
-        use <- bool.guard(
-          when: dict.is_empty(new_board.other_figures),
-          return: Draw(by: Stalemate),
-        )
-
-        let opponent_player = case moving_player {
+        let opposing_player = case moving_player {
           Black -> White
           White -> Black
         }
-
-        let opponent_has_no_moves =
-          get_all_legal_moves_on_arbitrary_board(new_board, opponent_player)
-          |> set.is_empty()
-
-        let opponent_is_in_check = is_in_check(new_board, opponent_player)
-
-        case opponent_has_no_moves, opponent_is_in_check {
-          True, True -> Victory(winner: moving_player, by: Checkmate)
-          True, False -> Draw(by: Stalemate)
-          False, _ -> WaitingOnNextMove(opponent_player)
+        case is_game_ended(new_board, moving_player:) {
+          None -> GameOngoing(next_player: opposing_player)
+          Some(end_condition) -> GameEnded(info: end_condition)
         }
       }
       Ok(Game(new_board, new_status))
@@ -256,11 +248,98 @@ pub fn get_legal_moves(
   figure coord: Coordinate,
 ) -> Result(set.Set(Move), GetMovesError) {
   case game.status {
-    Draw(_) -> Error(GetMovesWhilGameAlreadyOver)
-    Victory(_, _) -> Error(GetMovesWhilGameAlreadyOver)
-    WaitingOnNextMove(moving_player) ->
+    GameEnded(_) -> Error(GetMovesWhilGameAlreadyOver)
+    GameOngoing(moving_player) ->
       get_legal_moves_on_arbitrary_board(game.board, coord, moving_player)
       |> result.map_error(fn(e) { GetMovesWithInvalidFigure(reason: e) })
+  }
+}
+
+/// Determines wether the player is being checked by its opponent.
+fn is_in_check(board board: Board, player attackee: Player) -> Bool {
+  // Check if attackee is in check by requesting all moves of all
+  // attacker pieces and seeing if any of their moves hit the king
+
+  let attackee_king = case attackee {
+    White -> board.white_king
+    Black -> board.black_king
+  }
+  let attacker = case attackee {
+    White -> Black
+    Black -> White
+  }
+
+  // A king can never be checked by the opponent's king,
+  // thus iterating only over board.other_figures is sufficient
+  board.other_figures
+  |> dict.to_list
+  // Find all pieces belonging to attacker
+  |> list.filter(fn(coord_and_figure) { coord_and_figure.1.1 == attacker })
+  |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
+  // Get all attacker moves
+  |> list.flat_map(fn(coord) {
+    get_unchecked_moves(board, coord, attacker)
+    |> result.map(set.to_list)
+    |> result.unwrap([])
+  })
+  // Check if any move goes to attacks the attackee's king
+  |> list.any(fn(move) {
+    case move {
+      StdFigureMove(_, to:) -> to == attackee_king
+    }
+  })
+}
+
+fn is_game_ended(
+  board board: Board,
+  moving_player moving_player: Player,
+) -> Option(EndCondition) {
+  let opponent_player = case moving_player {
+    Black -> White
+    White -> Black
+  }
+
+  // Check draw by insufficient material
+  use <- bool.guard(
+    when: is_insufficient_material(board:),
+    return: Some(Draw(by: InsufficientMaterial)),
+  )
+
+  // Validate stalemate + checkmate together as they are tightly coupled
+  let check_or_stalemate = {
+    let opponent_has_no_moves =
+      get_all_legal_moves_on_arbitrary_board(board, opponent_player)
+      |> set.is_empty()
+
+    let opponent_is_in_check = is_in_check(board, opponent_player)
+    case opponent_has_no_moves, opponent_is_in_check {
+      True, True -> Some(Victory(winner: moving_player, by: Checkmate))
+      True, False -> Some(Draw(by: Stalemate))
+      False, _ -> None
+    }
+  }
+  check_or_stalemate
+}
+
+/// Checks wether the `board` is a draw through insufficient material
+fn is_insufficient_material(board board: Board) -> Bool {
+  case dict.to_list(board.other_figures) {
+    // king vs king
+    [] -> True
+
+    // king vs king and bishop
+    [#(_, #(Bishop, _))] -> True
+
+    // king vs king and knight
+    [#(_, #(Knight, _))] -> True
+
+    // king and bishop vs king and bishop (same colour)
+    [#(bishop1, #(Bishop, p1)), #(bishop2, #(Bishop, p2))] if p1 != p2 -> {
+      coord_colour(bishop1) == coord_colour(bishop2)
+    }
+
+    // No insufficient material
+    _ -> False
   }
 }
 
@@ -313,41 +392,6 @@ fn get_legal_moves_on_arbitrary_board(
     !is_in_check(future_board, moving_player)
   })
   |> Ok
-}
-
-/// Determines wether the player is being checked by its opponent.
-fn is_in_check(board board: Board, player attackee: Player) -> Bool {
-  // Check if attackee is in check by requesting all moves of all
-  // attacker pieces and seeing if any of their moves hit the king
-
-  let attackee_king = case attackee {
-    White -> board.white_king
-    Black -> board.black_king
-  }
-  let attacker = case attackee {
-    White -> Black
-    Black -> White
-  }
-
-  // A king can never be checked by the opponent's king,
-  // thus iterating only over board.other_figures is sufficient
-  board.other_figures
-  |> dict.to_list
-  // Find all pieces belonging to attacker
-  |> list.filter(fn(coord_and_figure) { coord_and_figure.1.1 == attacker })
-  |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
-  // Get all attacker moves
-  |> list.flat_map(fn(coord) {
-    get_unchecked_moves(board, coord, attacker)
-    |> result.map(set.to_list)
-    |> result.unwrap([])
-  })
-  // Check if any move goes to attacks the attackee's king
-  |> list.any(fn(move) {
-    case move {
-      StdFigureMove(_, to:) -> to == attackee_king
-    }
-  })
 }
 
 /// Retrieve all moves of a given figure.
@@ -557,13 +601,13 @@ fn get_moves_for_queen(
   |> set.map(fn(to) { StdFigureMove(coord, to) })
 }
 
-/// Used to describe a standard figure movement possibility
+/// Used to describe how a figure can generally move
 type FigureMoveDescription {
   JumpTo(origin: Coordinate, offset: #(Int, Int), attacker: Player)
   LineOfSight(origin: Coordinate, direction: #(Int, Int), attacker: Player)
 }
 
-/// Use the move_description to find all squares which the figure can go to
+/// Use the move_description to find which squares the figure can go to
 fn evaluate_figure_move_description(
   board board: Board,
   move_description move_description: FigureMoveDescription,
@@ -738,6 +782,40 @@ fn coord_move(
   use new_file <- option.then(file_move(coord.file, by_file))
   use new_row <- option.then(row_move(coord.row, by_row))
   Some(Coordinate(file: new_file, row: new_row))
+}
+
+type CoordinateColour {
+  LightSquare
+  DarkSquare
+}
+
+/// Get wether the referred square is dark or light squared
+fn coord_colour(coord coord: Coordinate) -> CoordinateColour {
+  let file_index = case coord.file {
+    FileA -> 0
+    FileB -> 1
+    FileC -> 2
+    FileD -> 3
+    FileE -> 4
+    FileF -> 5
+    FileG -> 6
+    FileH -> 7
+  }
+  let row_index = case coord.row {
+    Row1 -> 0
+    Row2 -> 1
+    Row3 -> 2
+    Row4 -> 3
+    Row5 -> 4
+    Row6 -> 5
+    Row7 -> 6
+    Row8 -> 7
+  }
+  case { file_index + row_index } % 2 {
+    0 -> DarkSquare
+    1 -> LightSquare
+    _ -> panic
+  }
 }
 
 /// Move a row up/down `by` times
