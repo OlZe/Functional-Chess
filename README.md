@@ -10,18 +10,30 @@ The API is minimal and easy to use. Refer to the [online documentation](https://
 
 ## Features
 
-- [x] Start in standard starting position
-- [x] Move the figures just like in a real game
-- [x] Request all legal moves of a given figure
-- [x] Prohibit moves that leave the king in check
-- [x] Descriptive Error returns
-- [x] Identify game-over conditions (Checkmate, Stalemate)
-- [x] Player can forfeit
-- [ ] Pawn promotion
-- [ ] Castling
-- [ ] En passant
+> 🛠️ Features marked incomplete are still being worked on.
 
-Features marked incomplete are still being worked on.
+- [x] Descriptive Error returns
+- [x] Start in standard starting position
+- [x] Request all legal moves of a given figure
+- [ ] Move the figures according to professional chess rules
+  - [x] Regular figure movement and capture
+  - [x] Prohibit moves that leave the king in check
+  - [ ] Pawn Promotion
+  - [ ] Castling
+  - [ ] En passant
+- [x] Win/Lose the game
+  - [x] by checkmate
+  - [x] by player forfeit
+- [ ] Draw the game[^1]
+  - [ ] by mutual player agreement
+  - [x] by [stalemate](https://www.chess.com/terms/draw-chess#stalemate)
+  - [ ] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
+  - [ ] by a [dead position](https://www.chess.com/terms/draw-chess#dead-position)
+  - [ ] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
+
+[^1]: The [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule) is omitted.
+
+
 
 ## Example Usage
 
