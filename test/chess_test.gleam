@@ -68,7 +68,7 @@ pub fn pawn_can_move_as_white_test() {
 
   let expected_moves =
     [coord.a3, coord.b3, coord.c3, coord.b4]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -109,7 +109,7 @@ pub fn pawn_can_move_as_black_test() {
 
   let expected_moves =
     [coord.a6, coord.b6, coord.c6, coord.b5]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -206,7 +206,7 @@ pub fn king_can_move_test() {
       coord.a2,
       coord.a3,
     ]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -252,7 +252,7 @@ pub fn knight_can_move_test() {
       coord.c2,
       coord.b3,
     ]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -304,7 +304,7 @@ pub fn rook_can_move_test() {
       coord.b4,
       coord.a4,
     ]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -327,7 +327,7 @@ pub fn rook_cannot_move_test() {
 
   let expected_moves =
     [coord.a2, coord.b1, coord.c1]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -360,7 +360,7 @@ pub fn bishop_can_move_test() {
       coord.f2,
       coord.g1,
     ]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -383,7 +383,7 @@ pub fn bishop_cannot_move_test() {
 
   let expected_moves =
     [coord.b2, coord.d2, coord.e3]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -430,7 +430,7 @@ pub fn queen_can_move_test() {
       coord.f2,
       coord.g1,
     ]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -454,7 +454,7 @@ pub fn queen_cannot_move_test() {
 
   let expected_moves =
     [coord.b1]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
 
   assert actual_moves == expected_moves
@@ -478,14 +478,14 @@ pub fn get_moves_doesnt_stay_in_check_test() {
   let assert Ok(king_moves) = c.get_legal_moves(game, selected_king)
   let expected_king_moves =
     [coord.b1]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_king, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_king, to:) })
     |> set.from_list
   assert king_moves == expected_king_moves
 
   let assert Ok(rook_moves) = c.get_legal_moves(game, selected_rook)
   let expected_rook_moves =
     [coord.a2]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_rook, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_rook, to:) })
     |> set.from_list
   assert rook_moves == expected_rook_moves
 }
@@ -502,12 +502,12 @@ pub fn get_moves_errors_test() {
   let game1 =
     c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmate)))
   assert c.get_legal_moves(game1, coord.a1)
-    == Error(c.GetMovesWhilGameAlreadyOver)
+    == Error(c.GetMovesWhileGameAlreadyOver)
 
   // Game is already drawn
   let game2 = c.Game(board, c.GameEnded(c.Draw(by: c.MutualAgreement)))
   assert c.get_legal_moves(game2, coord.a1)
-    == Error(c.GetMovesWhilGameAlreadyOver)
+    == Error(c.GetMovesWhileGameAlreadyOver)
 
   // Select figure which doesn't exist
   let game4 = c.Game(board, c.GameOngoing(White))
@@ -537,7 +537,7 @@ pub fn player_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.e7, #(Pawn, White))]),
     )
-  let move = c.StdFigureMove(coord.a1, coord.b2)
+  let move = c.StandardMove(coord.a1, coord.b2)
   assert c.player_move(game, move)
     == Ok(c.Game(expected_board, c.GameOngoing(Black)))
 }
@@ -549,7 +549,7 @@ pub fn player_move_errors_test() {
       black_king: coord.e8,
       other_figures: dict.new(),
     )
-  let move = c.StdFigureMove(coord.a1, coord.a2)
+  let move = c.StandardMove(coord.a1, coord.a2)
 
   // Game is already won
   let game1 =
@@ -576,7 +576,7 @@ pub fn player_cannot_check_himself_test() {
   let assert Ok(actual_moves) = c.get_legal_moves(game, selected_figure)
   let expected_moves =
     [coord.b1]
-    |> list.map(fn(to) { c.StdFigureMove(from: selected_figure, to:) })
+    |> list.map(fn(to) { c.StandardMove(from: selected_figure, to:) })
     |> set.from_list
   assert actual_moves == expected_moves
 }
@@ -592,7 +592,7 @@ pub fn stalemate_test() {
       ]),
     )
   let game = c.Game(board, c.GameOngoing(White))
-  let move = c.StdFigureMove(coord.h5, coord.b5)
+  let move = c.StandardMove(coord.h5, coord.b5)
   let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.Stalemate)))) =
     c.player_move(game, move)
 }
@@ -608,7 +608,7 @@ pub fn checkmate_test() {
       ]),
     )
   let game = c.Game(board, c.GameOngoing(White))
-  let move = c.StdFigureMove(coord.a6, coord.a8)
+  let move = c.StandardMove(coord.a6, coord.a8)
   let assert Ok(c.Game(
     _,
     c.GameEnded(c.Victory(winner: White, by: c.Checkmate)),
@@ -632,7 +632,7 @@ pub fn insufficient_material_by_king_vs_king_test() {
       ]),
     )
   let game = c.Game(board, c.GameOngoing(White))
-  let move = c.StdFigureMove(coord.e1, coord.e2)
+  let move = c.StandardMove(coord.e1, coord.e2)
   let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.InsufficientMaterial)))) =
     c.player_move(game, move)
 }
@@ -648,7 +648,7 @@ pub fn insufficient_material_by_king_vs_king_and_bishop_test() {
       ]),
     )
   let game = c.Game(board, c.GameOngoing(White))
-  let move = c.StdFigureMove(coord.e1, coord.e2)
+  let move = c.StandardMove(coord.e1, coord.e2)
   let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.InsufficientMaterial)))) =
     c.player_move(game, move)
 }
@@ -664,7 +664,7 @@ pub fn insufficient_material_by_king_vs_king_and_knight_test() {
       ]),
     )
   let game = c.Game(board, c.GameOngoing(White))
-  let move = c.StdFigureMove(coord.e1, coord.e2)
+  let move = c.StandardMove(coord.e1, coord.e2)
   let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.InsufficientMaterial)))) =
     c.player_move(game, move)
 }
@@ -681,7 +681,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_test() {
       ]),
     )
   let game = c.Game(board, c.GameOngoing(White))
-  let move = c.StdFigureMove(coord.e1, coord.e2)
+  let move = c.StandardMove(coord.e1, coord.e2)
   let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.InsufficientMaterial)))) =
     c.player_move(game, move)
 }
@@ -698,6 +698,6 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
       ]),
     )
   let game = c.Game(board, c.GameOngoing(White))
-  let move = c.StdFigureMove(coord.e1, coord.e2)
+  let move = c.StandardMove(coord.e1, coord.e2)
   let assert Ok(c.Game(_, c.GameOngoing(Black))) = c.player_move(game, move)
 }

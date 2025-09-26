@@ -25,10 +25,11 @@ pub type GameStatus {
   /// See [`info`](#EndCondition) to see how the game ended.
   GameEnded(info: EndCondition)
 
-  /// Waiting for the next move by `next_player`
+  /// Waiting for the next move by `next_player`.
   GameOngoing(next_player: Player)
 }
 
+/// Represents a way of ending the game.
 pub type EndCondition {
   Victory(winner: Player, by: WinCondition)
   Draw(by: DrawCondition)
@@ -124,17 +125,17 @@ pub type Row {
   Row8
 }
 
-/// Represents a chess move by the player.
+/// Represents a way to move a figure by the player.
 /// 
 /// To be used in [`player_move`](#player_move).
 /// 
 /// Use [`get_legal_moves`](#get_legal_moves) to generate.
 pub type Move {
   /// Used to move a figure from `from` to `to`
-  StdFigureMove(from: Coordinate, to: Coordinate)
+  StandardMove(from: Coordinate, to: Coordinate)
 }
 
-/// Represents an error when trying to select a figure
+/// Represents an error when trying to select a figure.
 pub type SelectFigureError {
   /// Tried selecting a figure from a coordinate which points to an empty square.
   SelectedFigureDoesntExist
@@ -232,7 +233,7 @@ pub fn player_move(
 /// Represents an error returned by [`get_legal_moves`](#get_legal_moves).
 pub type GetMovesError {
   /// Tried getting moves while the game is already over.
-  GetMovesWhilGameAlreadyOver
+  GetMovesWhileGameAlreadyOver
 
   /// Tried making a move with an invalid figure. See [`reason`](#SelectFigureError) for extra info.
   GetMovesWithInvalidFigure(reason: SelectFigureError)
@@ -248,7 +249,7 @@ pub fn get_legal_moves(
   figure coord: Coordinate,
 ) -> Result(set.Set(Move), GetMovesError) {
   case game.status {
-    GameEnded(_) -> Error(GetMovesWhilGameAlreadyOver)
+    GameEnded(_) -> Error(GetMovesWhileGameAlreadyOver)
     GameOngoing(moving_player) ->
       get_legal_moves_on_arbitrary_board(game.board, coord, moving_player)
       |> result.map_error(fn(e) { GetMovesWithInvalidFigure(reason: e) })
@@ -285,7 +286,7 @@ fn is_in_check(board board: Board, player attackee: Player) -> Bool {
   // Check if any move goes to attacks the attackee's king
   |> list.any(fn(move) {
     case move {
-      StdFigureMove(_, to:) -> to == attackee_king
+      StandardMove(_, to:) -> to == attackee_king
     }
   })
 }
@@ -501,7 +502,7 @@ fn get_moves_for_pawn(
   let all_moves =
     [up, up_up, up_left, up_right]
     |> option.values
-    |> list.map(fn(to) { StdFigureMove(coord, to) })
+    |> list.map(fn(to) { StandardMove(coord, to) })
     |> set.from_list
 
   all_moves
@@ -521,7 +522,7 @@ fn get_moves_for_king(
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StdFigureMove(coord, to) })
+  |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
 /// Get all possible destinations of a knight
@@ -547,7 +548,7 @@ fn get_moves_for_knight(
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StdFigureMove(coord, to) })
+  |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
 /// Get all possible destinations of a rook
@@ -564,7 +565,7 @@ fn get_moves_for_rook(
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StdFigureMove(coord, to) })
+  |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
 /// Get all possible destinations of a bishop
@@ -581,7 +582,7 @@ fn get_moves_for_bishop(
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StdFigureMove(coord, to) })
+  |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
 /// Get all possible destinations of a queen
@@ -598,7 +599,7 @@ fn get_moves_for_queen(
   |> set.map(evaluate_figure_move_description(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StdFigureMove(coord, to) })
+  |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
 /// Used to describe how a figure can generally move
@@ -739,7 +740,7 @@ fn board_get(
 /// Errors if there is no figure to move.
 fn board_move(board board: Board, move move: Move) -> Result(Board, Nil) {
   case move {
-    StdFigureMove(from:, to:) -> {
+    StandardMove(from:, to:) -> {
       case board {
         // Move white king
         Board(white_king:, black_king:, other_figures:) if white_king == from ->
