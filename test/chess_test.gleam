@@ -1,6 +1,4 @@
-import chess as m
-import chess/board.{Bishop, Black, Knight, Pawn, Queen, Rook, White} as b
-import chess/coordinate as c
+import chess.{Bishop, Black, Knight, Pawn, Queen, Rook, White} as c
 import gleam/dict
 import gleam/set
 import gleeunit
@@ -9,519 +7,549 @@ pub fn main() -> Nil {
   gleeunit.main()
 }
 
-fn start_position() -> b.Board {
+fn start_position() -> c.Board {
   let other_figures =
     dict.from_list([
-      #(c.a1, #(Rook, White)),
-      #(c.b1, #(Knight, White)),
-      #(c.c1, #(Bishop, White)),
-      #(c.d1, #(Queen, White)),
-      #(c.f1, #(Bishop, White)),
-      #(c.g1, #(Knight, White)),
-      #(c.h1, #(Rook, White)),
-      #(c.a2, #(Pawn, White)),
-      #(c.b2, #(Pawn, White)),
-      #(c.c2, #(Pawn, White)),
-      #(c.d2, #(Pawn, White)),
-      #(c.e2, #(Pawn, White)),
-      #(c.f2, #(Pawn, White)),
-      #(c.g2, #(Pawn, White)),
-      #(c.h2, #(Pawn, White)),
-      #(c.a8, #(Rook, Black)),
-      #(c.b8, #(Knight, Black)),
-      #(c.c8, #(Bishop, Black)),
-      #(c.d8, #(Queen, Black)),
-      #(c.f8, #(Bishop, Black)),
-      #(c.g8, #(Knight, Black)),
-      #(c.h8, #(Rook, Black)),
-      #(c.a7, #(Pawn, Black)),
-      #(c.b7, #(Pawn, Black)),
-      #(c.c7, #(Pawn, Black)),
-      #(c.d7, #(Pawn, Black)),
-      #(c.e7, #(Pawn, Black)),
-      #(c.f7, #(Pawn, Black)),
-      #(c.g7, #(Pawn, Black)),
-      #(c.h7, #(Pawn, Black)),
+      #(c.coord_a1, #(Rook, White)),
+      #(c.coord_b1, #(Knight, White)),
+      #(c.coord_c1, #(Bishop, White)),
+      #(c.coord_d1, #(Queen, White)),
+      #(c.coord_f1, #(Bishop, White)),
+      #(c.coord_g1, #(Knight, White)),
+      #(c.coord_h1, #(Rook, White)),
+      #(c.coord_a2, #(Pawn, White)),
+      #(c.coord_b2, #(Pawn, White)),
+      #(c.coord_c2, #(Pawn, White)),
+      #(c.coord_d2, #(Pawn, White)),
+      #(c.coord_e2, #(Pawn, White)),
+      #(c.coord_f2, #(Pawn, White)),
+      #(c.coord_g2, #(Pawn, White)),
+      #(c.coord_h2, #(Pawn, White)),
+      #(c.coord_a8, #(Rook, Black)),
+      #(c.coord_b8, #(Knight, Black)),
+      #(c.coord_c8, #(Bishop, Black)),
+      #(c.coord_d8, #(Queen, Black)),
+      #(c.coord_f8, #(Bishop, Black)),
+      #(c.coord_g8, #(Knight, Black)),
+      #(c.coord_h8, #(Rook, Black)),
+      #(c.coord_a7, #(Pawn, Black)),
+      #(c.coord_b7, #(Pawn, Black)),
+      #(c.coord_c7, #(Pawn, Black)),
+      #(c.coord_d7, #(Pawn, Black)),
+      #(c.coord_e7, #(Pawn, Black)),
+      #(c.coord_f7, #(Pawn, Black)),
+      #(c.coord_g7, #(Pawn, Black)),
+      #(c.coord_h7, #(Pawn, Black)),
     ])
-  b.Board(white_king: c.e1, black_king: c.e8, other_figures:)
+  c.Board(white_king: c.coord_e1, black_king: c.coord_e8, other_figures:)
 }
 
 pub fn new_game_test() {
-  let game = m.new_game()
-  assert game == m.Game(start_position(), m.WaitingOnNextMove(White))
+  let game = c.new_game()
+  assert game == c.Game(start_position(), c.WaitingOnNextMove(White))
 }
 
 pub fn pawn_can_move_as_white_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.b2, #(Pawn, White)),
-        #(c.a3, #(Pawn, Black)),
-        #(c.c3, #(Pawn, Black)),
+        #(c.coord_b2, #(Pawn, White)),
+        #(c.coord_a3, #(Pawn, Black)),
+        #(c.coord_c3, #(Pawn, Black)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.b2)
-  assert moves == set.from_list([c.a3, c.b3, c.c3, c.b4])
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_b2)
+  assert moves
+    == set.from_list([c.coord_a3, c.coord_b3, c.coord_c3, c.coord_b4])
 }
 
 pub fn pawn_cannot_move_as_white_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.b1, #(Pawn, White)),
-        #(c.b2, #(Pawn, Black)),
-        #(c.a2, #(Pawn, White)),
+        #(c.coord_b1, #(Pawn, White)),
+        #(c.coord_b2, #(Pawn, Black)),
+        #(c.coord_a2, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.b1)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_b1)
   assert moves == set.new()
 }
 
 pub fn pawn_can_move_as_black_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.b7, #(Pawn, Black)),
-        #(c.a6, #(Pawn, White)),
-        #(c.c6, #(Pawn, White)),
+        #(c.coord_b7, #(Pawn, Black)),
+        #(c.coord_a6, #(Pawn, White)),
+        #(c.coord_c6, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(Black))
-  let assert Ok(moves) = m.get_legal_moves(game, c.b7)
-  assert moves == set.from_list([c.a6, c.b6, c.c6, c.b5])
+  let game = c.Game(board, c.WaitingOnNextMove(Black))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_b7)
+  assert moves
+    == set.from_list([c.coord_a6, c.coord_b6, c.coord_c6, c.coord_b5])
 }
 
 pub fn pawn_cannot_move_as_black_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.b8, #(Pawn, Black)),
-        #(c.b7, #(Pawn, White)),
-        #(c.a7, #(Pawn, Black)),
+        #(c.coord_b8, #(Pawn, Black)),
+        #(c.coord_b7, #(Pawn, White)),
+        #(c.coord_a7, #(Pawn, Black)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(Black))
-  let assert Ok(moves) = m.get_legal_moves(game, c.b8)
+  let game = c.Game(board, c.WaitingOnNextMove(Black))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_b8)
   assert moves == set.new()
 }
 
 pub fn pawn_cannot_doublemove() {
   // Not on starting position
   let board1 =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a3, #(Pawn, White)),
+        #(c.coord_a3, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board1, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.a3)
+  let game = c.Game(board1, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_a3)
   assert moves == set.new()
 
   // Square directly in front blocked
   let board2 =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a3, #(Pawn, White)),
-        #(c.a4, #(Pawn, White)),
+        #(c.coord_a3, #(Pawn, White)),
+        #(c.coord_a4, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board2, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.a3)
+  let game = c.Game(board2, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_a3)
   assert moves == set.new()
 
   // Destination square blocked
   let board3 =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a3, #(Pawn, White)),
-        #(c.a5, #(Pawn, White)),
+        #(c.coord_a3, #(Pawn, White)),
+        #(c.coord_a5, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board3, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.a3)
+  let game = c.Game(board3, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_a3)
   assert moves == set.new()
 }
 
 pub fn king_can_move_test() {
   let board =
-    b.Board(
-      white_king: c.b2,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_b2,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a3, #(Pawn, Black)),
+        #(c.coord_a3, #(Pawn, Black)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.b2)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_b2)
   assert moves
-    == set.from_list([c.b3, c.c3, c.c2, c.c1, c.b1, c.a1, c.a2, c.a3])
+    == set.from_list([
+      c.coord_b3,
+      c.coord_c3,
+      c.coord_c2,
+      c.coord_c1,
+      c.coord_b1,
+      c.coord_a1,
+      c.coord_a2,
+      c.coord_a3,
+    ])
 }
 
 pub fn king_cannot_move_test() {
   let board =
-    b.Board(
-      white_king: c.a1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_a1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a2, #(Pawn, White)),
-        #(c.b2, #(Pawn, White)),
-        #(c.b1, #(Pawn, White)),
+        #(c.coord_a2, #(Pawn, White)),
+        #(c.coord_b2, #(Pawn, White)),
+        #(c.coord_b1, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.a1)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_a1)
   assert moves == set.new()
 }
 
 pub fn knight_can_move_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
-      other_figures: dict.from_list([#(c.d4, #(Knight, White))]),
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
+      other_figures: dict.from_list([#(c.coord_d4, #(Knight, White))]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.d4)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_d4)
   assert moves
-    == set.from_list([c.b5, c.c6, c.e6, c.f5, c.f3, c.e2, c.c2, c.b3])
+    == set.from_list([
+      c.coord_b5,
+      c.coord_c6,
+      c.coord_e6,
+      c.coord_f5,
+      c.coord_f3,
+      c.coord_e2,
+      c.coord_c2,
+      c.coord_b3,
+    ])
 }
 
 pub fn knight_cannot_move_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a1, #(Knight, White)),
-        #(c.b3, #(Pawn, White)),
-        #(c.c2, #(Pawn, White)),
+        #(c.coord_a1, #(Knight, White)),
+        #(c.coord_b3, #(Pawn, White)),
+        #(c.coord_c2, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.a1)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_a1)
   assert moves == set.new()
 }
 
 pub fn rook_can_move_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
-      other_figures: dict.from_list([#(c.d4, #(Rook, White))]),
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
+      other_figures: dict.from_list([#(c.coord_d4, #(Rook, White))]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.d4)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_d4)
   assert moves
     == set.from_list([
-      c.d5,
-      c.d6,
-      c.d7,
-      c.d8,
-      c.d3,
-      c.d2,
-      c.d1,
-      c.e4,
-      c.f4,
-      c.g4,
-      c.h4,
-      c.c4,
-      c.b4,
-      c.a4,
+      c.coord_d5,
+      c.coord_d6,
+      c.coord_d7,
+      c.coord_d8,
+      c.coord_d3,
+      c.coord_d2,
+      c.coord_d1,
+      c.coord_e4,
+      c.coord_f4,
+      c.coord_g4,
+      c.coord_h4,
+      c.coord_c4,
+      c.coord_b4,
+      c.coord_a4,
     ])
 }
 
 pub fn rook_cannot_move_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a1, #(Rook, White)),
-        #(c.a3, #(Pawn, White)),
-        #(c.c1, #(Pawn, Black)),
+        #(c.coord_a1, #(Rook, White)),
+        #(c.coord_a3, #(Pawn, White)),
+        #(c.coord_c1, #(Pawn, Black)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.a1)
-  assert moves == set.from_list([c.a2, c.b1, c.c1])
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_a1)
+  assert moves == set.from_list([c.coord_a2, c.coord_b1, c.coord_c1])
 }
 
 pub fn bishop_can_move_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
-      other_figures: dict.from_list([#(c.d4, #(Bishop, White))]),
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
+      other_figures: dict.from_list([#(c.coord_d4, #(Bishop, White))]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.d4)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_d4)
   assert moves
     == set.from_list([
-      c.e5,
-      c.f6,
-      c.g7,
-      c.h8,
-      c.c3,
-      c.b2,
-      c.a1,
-      c.c5,
-      c.b6,
-      c.a7,
-      c.e3,
-      c.f2,
-      c.g1,
+      c.coord_e5,
+      c.coord_f6,
+      c.coord_g7,
+      c.coord_h8,
+      c.coord_c3,
+      c.coord_b2,
+      c.coord_a1,
+      c.coord_c5,
+      c.coord_b6,
+      c.coord_a7,
+      c.coord_e3,
+      c.coord_f2,
+      c.coord_g1,
     ])
 }
 
 pub fn bishop_cannot_move_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.c1, #(Bishop, White)),
-        #(c.a3, #(Pawn, White)),
-        #(c.e3, #(Pawn, Black)),
+        #(c.coord_c1, #(Bishop, White)),
+        #(c.coord_a3, #(Pawn, White)),
+        #(c.coord_e3, #(Pawn, Black)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.c1)
-  assert moves == set.from_list([c.b2, c.d2, c.e3])
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_c1)
+  assert moves == set.from_list([c.coord_b2, c.coord_d2, c.coord_e3])
 }
 
 pub fn queen_can_move_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
-      other_figures: dict.from_list([#(c.d4, #(Queen, White))]),
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
+      other_figures: dict.from_list([#(c.coord_d4, #(Queen, White))]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.d4)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_d4)
   assert moves
     == set.from_list([
-      c.d5,
-      c.d6,
-      c.d7,
-      c.d8,
-      c.d3,
-      c.d2,
-      c.d1,
-      c.e4,
-      c.f4,
-      c.g4,
-      c.h4,
-      c.c4,
-      c.b4,
-      c.a4,
-      c.e5,
-      c.f6,
-      c.g7,
-      c.h8,
-      c.c3,
-      c.b2,
-      c.a1,
-      c.c5,
-      c.b6,
-      c.a7,
-      c.e3,
-      c.f2,
-      c.g1,
+      c.coord_d5,
+      c.coord_d6,
+      c.coord_d7,
+      c.coord_d8,
+      c.coord_d3,
+      c.coord_d2,
+      c.coord_d1,
+      c.coord_e4,
+      c.coord_f4,
+      c.coord_g4,
+      c.coord_h4,
+      c.coord_c4,
+      c.coord_b4,
+      c.coord_a4,
+      c.coord_e5,
+      c.coord_f6,
+      c.coord_g7,
+      c.coord_h8,
+      c.coord_c3,
+      c.coord_b2,
+      c.coord_a1,
+      c.coord_c5,
+      c.coord_b6,
+      c.coord_a7,
+      c.coord_e3,
+      c.coord_f2,
+      c.coord_g1,
     ])
 }
 
 pub fn queen_cannot_move_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a1, #(Queen, White)),
-        #(c.a2, #(Pawn, White)),
-        #(c.b2, #(Pawn, White)),
-        #(c.b1, #(Pawn, Black)),
+        #(c.coord_a1, #(Queen, White)),
+        #(c.coord_a2, #(Pawn, White)),
+        #(c.coord_b2, #(Pawn, White)),
+        #(c.coord_b1, #(Pawn, Black)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.a1)
-  assert moves == set.from_list([c.b1])
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_a1)
+  assert moves == set.from_list([c.coord_b1])
 }
 
 /// Tests that get_moves() only returns legal moves when the player is in check.
 /// A legal move has to get the player out of check
 pub fn get_moves_doesnt_stay_in_check_test() {
   let board =
-    b.Board(
+    c.Board(
       // White king is in check by black rook
-      white_king: c.a1,
-      black_king: c.e8,
+      white_king: c.coord_a1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a8, #(Rook, Black)),
-        #(c.b2, #(Rook, White)),
+        #(c.coord_a8, #(Rook, Black)),
+        #(c.coord_b2, #(Rook, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
+  let game = c.Game(board, c.WaitingOnNextMove(White))
 
   // King can move out of check
-  assert m.get_legal_moves(game, c.a1) == Ok(set.from_list([c.b1]))
+  assert c.get_legal_moves(game, c.coord_a1) == Ok(set.from_list([c.coord_b1]))
 
   // Rook can block check
-  assert m.get_legal_moves(game, c.b2) == Ok(set.from_list([c.a2]))
+  assert c.get_legal_moves(game, c.coord_b2) == Ok(set.from_list([c.coord_a2]))
 }
 
 pub fn get_moves_errors_test() {
   // Game is checkmate
   let board =
-    b.Board(white_king: c.a1, black_king: c.e8, other_figures: dict.new())
-  let game = m.Game(board, m.Checkmated(White))
-  assert m.get_legal_moves(game, c.a1) == Error(m.GameAlreadyOver)
+    c.Board(
+      white_king: c.coord_a1,
+      black_king: c.coord_e8,
+      other_figures: dict.new(),
+    )
+  let game = c.Game(board, c.Checkmated(White))
+  assert c.get_legal_moves(game, c.coord_a1) == Error(c.GameAlreadyOver)
 
   // Game is forfeit
-  let game = m.Game(board, m.Forfeited(White))
-  assert m.get_legal_moves(game, c.a1) == Error(m.GameAlreadyOver)
+  let game = c.Game(board, c.Forfeited(White))
+  assert c.get_legal_moves(game, c.coord_a1) == Error(c.GameAlreadyOver)
 
   // Game is stalemate
-  let game = m.Game(board, m.Stalemated)
-  assert m.get_legal_moves(game, c.a1) == Error(m.GameAlreadyOver)
+  let game = c.Game(board, c.Stalemated)
+  assert c.get_legal_moves(game, c.coord_a1) == Error(c.GameAlreadyOver)
 
   // Select figure which doesn't exist
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  assert m.get_legal_moves(game, c.b2) == Error(m.SelectedFigureDoesntExist)
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  assert c.get_legal_moves(game, c.coord_b2)
+    == Error(c.SelectedFigureDoesntExist)
 
   // Select figure which isn't friendly
-  let game = m.Game(board, m.WaitingOnNextMove(Black))
-  assert m.get_legal_moves(game, c.a1) == Error(m.SelectedFigureIsNotFriendly)
+  let game = c.Game(board, c.WaitingOnNextMove(Black))
+  assert c.get_legal_moves(game, c.coord_a1)
+    == Error(c.SelectedFigureIsNotFriendly)
 }
 
 pub fn player_move_test() {
   let board =
-    b.Board(
-      white_king: c.a1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_a1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.b2, #(Pawn, Black)),
-        #(c.e7, #(Pawn, White)),
+        #(c.coord_b2, #(Pawn, Black)),
+        #(c.coord_e7, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
+  let game = c.Game(board, c.WaitingOnNextMove(White))
   let expected_board =
-    b.Board(
-      white_king: c.b2,
-      black_king: c.e8,
-      other_figures: dict.from_list([#(c.e7, #(Pawn, White))]),
+    c.Board(
+      white_king: c.coord_b2,
+      black_king: c.coord_e8,
+      other_figures: dict.from_list([#(c.coord_e7, #(Pawn, White))]),
     )
-  assert m.player_move(game, m.MoveFigure(c.a1, c.b2))
-    == Ok(m.Game(expected_board, m.WaitingOnNextMove(Black)))
+  assert c.player_move(game, c.MoveFigure(c.coord_a1, c.coord_b2))
+    == Ok(c.Game(expected_board, c.WaitingOnNextMove(Black)))
 }
 
 pub fn player_move_errors_test() {
   let board =
-    b.Board(white_king: c.a1, black_king: c.e8, other_figures: dict.new())
+    c.Board(
+      white_king: c.coord_a1,
+      black_king: c.coord_e8,
+      other_figures: dict.new(),
+    )
   // Game already checkmate
-  let game = m.Game(board, m.Checkmated(White))
-  assert m.player_move(game, m.MoveFigure(c.a1, c.a2))
-    == Error(m.GameAlreadyOver)
+  let game = c.Game(board, c.Checkmated(White))
+  assert c.player_move(game, c.MoveFigure(c.coord_a1, c.coord_a2))
+    == Error(c.GameAlreadyOver)
 
   // Game already forfeit
-  let game = m.Game(board, m.Forfeited(White))
-  assert m.player_move(game, m.MoveFigure(c.a1, c.a2))
-    == Error(m.GameAlreadyOver)
+  let game = c.Game(board, c.Forfeited(White))
+  assert c.player_move(game, c.MoveFigure(c.coord_a1, c.coord_a2))
+    == Error(c.GameAlreadyOver)
 
   // Game already stalemate
-  let game = m.Game(board, m.Stalemated)
-  assert m.player_move(game, m.MoveFigure(c.a1, c.a2))
-    == Error(m.GameAlreadyOver)
+  let game = c.Game(board, c.Stalemated)
+  assert c.player_move(game, c.MoveFigure(c.coord_a1, c.coord_a2))
+    == Error(c.GameAlreadyOver)
 }
 
 pub fn player_cannot_check_himself_test() {
   let board =
-    b.Board(
-      white_king: c.a1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_a1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a3, #(Pawn, Black)),
-        #(c.b3, #(Pawn, Black)),
+        #(c.coord_a3, #(Pawn, Black)),
+        #(c.coord_b3, #(Pawn, Black)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
-  let assert Ok(moves) = m.get_legal_moves(game, c.a1)
-  assert moves == set.from_list([c.b1])
+  let game = c.Game(board, c.WaitingOnNextMove(White))
+  let assert Ok(moves) = c.get_legal_moves(game, c.coord_a1)
+  assert moves == set.from_list([c.coord_b1])
 }
 
 pub fn stalemate_by_empty_board_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.e2, #(Pawn, Black)),
+        #(c.coord_e2, #(Pawn, Black)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
+  let game = c.Game(board, c.WaitingOnNextMove(White))
 
-  let assert Ok(m.Game(_, m.Stalemated)) =
-    m.player_move(game, m.MoveFigure(c.e1, c.e2))
+  let assert Ok(c.Game(_, c.Stalemated)) =
+    c.player_move(game, c.MoveFigure(c.coord_e1, c.coord_e2))
 }
 
 pub fn stalemate_by_no_moves_left_test() {
   let board =
-    b.Board(
-      white_king: c.e1,
-      black_king: c.a8,
+    c.Board(
+      white_king: c.coord_e1,
+      black_king: c.coord_a8,
       other_figures: dict.from_list([
-        #(c.h7, #(Rook, White)),
-        #(c.h5, #(Rook, White)),
+        #(c.coord_h7, #(Rook, White)),
+        #(c.coord_h5, #(Rook, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
+  let game = c.Game(board, c.WaitingOnNextMove(White))
 
-  let assert Ok(m.Game(_, m.Stalemated)) =
-    m.player_move(game, m.MoveFigure(c.h5, c.b5))
+  let assert Ok(c.Game(_, c.Stalemated)) =
+    c.player_move(game, c.MoveFigure(c.coord_h5, c.coord_b5))
 }
 
 pub fn checkmate_test() {
   let board =
-    b.Board(
-      white_king: c.e4,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e4,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.b7, #(Rook, White)),
-        #(c.a6, #(Rook, White)),
+        #(c.coord_b7, #(Rook, White)),
+        #(c.coord_a6, #(Rook, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
+  let game = c.Game(board, c.WaitingOnNextMove(White))
 
-  let assert Ok(m.Game(_, m.Checkmated(winner: White))) =
-    m.player_move(game, m.MoveFigure(c.a6, c.a8))
+  let assert Ok(c.Game(_, c.Checkmated(winner: White))) =
+    c.player_move(game, c.MoveFigure(c.coord_a6, c.coord_a8))
 }
 
 pub fn forfeit_test() {
   let board =
-    b.Board(
-      white_king: c.e4,
-      black_king: c.e8,
+    c.Board(
+      white_king: c.coord_e4,
+      black_king: c.coord_e8,
       other_figures: dict.from_list([
-        #(c.a2, #(Pawn, White)),
+        #(c.coord_a2, #(Pawn, White)),
       ]),
     )
-  let game = m.Game(board, m.WaitingOnNextMove(White))
+  let game = c.Game(board, c.WaitingOnNextMove(White))
 
-  let assert Ok(m.Game(_, m.Forfeited(winner: Black))) =
-    m.player_move(game, m.Forfeit)
+  let assert Ok(c.Game(_, c.Forfeited(winner: Black))) =
+    c.player_move(game, c.Forfeit)
 }
