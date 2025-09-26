@@ -13,7 +13,7 @@ import gleam/set
 /// 
 /// Use [`new_game`](#new_game) to generate.
 pub type Game {
-  Game(board: Board, state: GameStatus)
+  Game(board: Board, status: GameStatus)
 }
 
 /// Represents if the game is won/lost/tied or still ongoing.
@@ -104,14 +104,14 @@ pub type Move {
 
 /// Creates a new game in the standard starting chess position.
 pub fn new_game() -> Game {
-  Game(board: board_new(), state: WaitingOnNextMove(White))
+  Game(board: board_new(), status: WaitingOnNextMove(White))
 }
 
 /// Forfeit the game to the opposing player.
 /// 
 /// Errors if the game was already over.
 pub fn forfeit(game game: Game) -> Result(Game, Error) {
-  case game.state {
+  case game.status {
     Checkmated(_) -> Error(GameAlreadyOver)
     Forfeited(_) -> Error(GameAlreadyOver)
     Stalemated -> Error(GameAlreadyOver)
@@ -120,7 +120,7 @@ pub fn forfeit(game game: Game) -> Result(Game, Error) {
         Black -> White
         White -> Black
       }
-      Ok(Game(board: game.board, state: Forfeited(winner:)))
+      Ok(Game(board: game.board, status: Forfeited(winner:)))
     }
   }
 }
@@ -133,7 +133,7 @@ pub fn forfeit(game game: Game) -> Result(Game, Error) {
 /// 
 /// Errors if the provided move is not legal or the game was already over.
 pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
-  case game.state {
+  case game.status {
     Checkmated(_) -> Error(GameAlreadyOver)
     Forfeited(_) -> Error(GameAlreadyOver)
     Stalemated -> Error(GameAlreadyOver)
@@ -154,7 +154,7 @@ pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
       let new_board = board_move(game.board, move)
 
       // Check if game ended
-      let new_state = {
+      let new_status = {
         // If there are only kings left, then the game is a stalemate
         use <- bool.guard(
           when: dict.is_empty(new_board.other_figures),
@@ -178,7 +178,7 @@ pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
           False, _ -> WaitingOnNextMove(opponent_player)
         }
       }
-      Ok(Game(new_board, new_state))
+      Ok(Game(new_board, new_status))
     }
   }
 }
@@ -190,7 +190,7 @@ pub fn get_legal_moves(
   game game: Game,
   figure coord: Coordinate,
 ) -> Result(set.Set(Move), Error) {
-  case game.state {
+  case game.status {
     Checkmated(_) -> Error(GameAlreadyOver)
     Forfeited(_) -> Error(GameAlreadyOver)
     Stalemated -> Error(GameAlreadyOver)
