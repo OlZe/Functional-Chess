@@ -16,7 +16,7 @@ pub type Game {
   Game(board: Board, status: GameStatus)
 }
 
-/// Represents if the game still ongoing or over.
+/// Represents if the is game still ongoing or over.
 pub type GameStatus {
   Victory(winner: Player, by: WinCondition)
   Draw(by: DrawCondition)
@@ -58,7 +58,7 @@ pub type DrawCondition {
   ThreefoldRepition
 }
 
-/// Represents an error that may be returned when using the public functions
+/// Represents an error that may be returned when using the public functions.
 pub type Error {
   /// Tried making a move while the game is already over.
   GameAlreadyOver
@@ -223,6 +223,8 @@ pub fn player_move(game game: Game, move move: Move) -> Result(Game, Error) {
 /// Return a list of all legal moves from a selected figure.
 /// 
 /// To execute a move use [`player_move`](#player_move).
+/// 
+/// Errors if the game was already over.
 pub fn get_legal_moves(
   game game: Game,
   figure coord: Coordinate,
