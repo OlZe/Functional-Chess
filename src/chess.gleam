@@ -156,10 +156,7 @@ pub fn forfeit(game game: Game) -> Result(Game, Nil) {
   case game.status {
     GameEnded(_) -> Error(Nil)
     GameOngoing(next_player: forfeiter) -> {
-      let winner = case forfeiter {
-        Black -> White
-        White -> Black
-      }
+      let winner = player_flip(forfeiter)
       Ok(Game(
         board: game.board,
         status: GameEnded(Victory(winner:, by: Forfeit)),
@@ -216,12 +213,8 @@ pub fn player_move(
 
       // Check if game ended
       let new_status = {
-        let opposing_player = case moving_player {
-          Black -> White
-          White -> Black
-        }
         case is_game_ended(new_board, moving_player:) {
-          None -> GameOngoing(next_player: opposing_player)
+          None -> GameOngoing(next_player: player_flip(moving_player))
           Some(end_condition) -> GameEnded(info: end_condition)
         }
       }
@@ -265,10 +258,7 @@ fn is_in_check(board board: Board, player attackee: Player) -> Bool {
     White -> board.white_king
     Black -> board.black_king
   }
-  let attacker = case attackee {
-    White -> Black
-    Black -> White
-  }
+  let attacker = player_flip(attackee)
 
   // A king can never be checked by the opponent's king,
   // thus iterating only over board.other_figures is sufficient
@@ -295,10 +285,7 @@ fn is_game_ended(
   board board: Board,
   moving_player moving_player: Player,
 ) -> Option(EndCondition) {
-  let opponent_player = case moving_player {
-    Black -> White
-    White -> Black
-  }
+  let opponent_player = player_flip(moving_player)
 
   // Check draw by insufficient material
   use <- bool.guard(
@@ -874,6 +861,13 @@ fn file_move(file: File, by: Int) -> Option(File) {
         FileG -> file_move(FileF, by + 1)
         FileH -> file_move(FileG, by + 1)
       }
+  }
+}
+
+fn player_flip(player player: Player) -> Player {
+  case player {
+    Black -> White
+    White -> Black
   }
 }
 
