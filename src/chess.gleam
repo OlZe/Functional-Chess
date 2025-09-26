@@ -85,14 +85,13 @@ pub type Player {
 
 /// Represents a coordinate referring to a square on the chess board.
 /// 
-/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference all board coordinates.
+/// You may use the predefined constants in the module [`chess/coordinates`](./chess/coordinates.html)
+/// to quickly reference all possible chess squares.
 pub type Coordinate {
   Coordinate(file: File, row: Row)
 }
 
 /// Represents a file (vertical line of squares) of a chess board.
-/// 
-/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference all board coordinates.
 pub type File {
   FileA
   FileB
@@ -105,8 +104,6 @@ pub type File {
 }
 
 /// Represents a row (horizontal line of squares) of a chess board.
-/// 
-/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference all board coordinates.
 pub type Row {
   Row1
   Row2
@@ -637,39 +634,39 @@ fn evaluate_line_of_sight_loop(
 /// Creates a new board in the standard chess starting position.
 fn board_new() -> Board {
   Board(
-    white_king: coord_e1,
-    black_king: coord_e8,
+    white_king: Coordinate(FileE, Row1),
+    black_king: Coordinate(FileE, Row8),
     other_figures: dict.from_list([
-      #(coord_a1, #(Rook, White)),
-      #(coord_b1, #(Knight, White)),
-      #(coord_c1, #(Bishop, White)),
-      #(coord_d1, #(Queen, White)),
-      #(coord_f1, #(Bishop, White)),
-      #(coord_g1, #(Knight, White)),
-      #(coord_h1, #(Rook, White)),
-      #(coord_a2, #(Pawn, White)),
-      #(coord_b2, #(Pawn, White)),
-      #(coord_c2, #(Pawn, White)),
-      #(coord_d2, #(Pawn, White)),
-      #(coord_e2, #(Pawn, White)),
-      #(coord_f2, #(Pawn, White)),
-      #(coord_g2, #(Pawn, White)),
-      #(coord_h2, #(Pawn, White)),
-      #(coord_a8, #(Rook, Black)),
-      #(coord_b8, #(Knight, Black)),
-      #(coord_c8, #(Bishop, Black)),
-      #(coord_d8, #(Queen, Black)),
-      #(coord_f8, #(Bishop, Black)),
-      #(coord_g8, #(Knight, Black)),
-      #(coord_h8, #(Rook, Black)),
-      #(coord_a7, #(Pawn, Black)),
-      #(coord_b7, #(Pawn, Black)),
-      #(coord_c7, #(Pawn, Black)),
-      #(coord_d7, #(Pawn, Black)),
-      #(coord_e7, #(Pawn, Black)),
-      #(coord_f7, #(Pawn, Black)),
-      #(coord_g7, #(Pawn, Black)),
-      #(coord_h7, #(Pawn, Black)),
+      #(Coordinate(FileA, Row1), #(Rook, White)),
+      #(Coordinate(FileB, Row1), #(Knight, White)),
+      #(Coordinate(FileC, Row1), #(Bishop, White)),
+      #(Coordinate(FileD, Row1), #(Queen, White)),
+      #(Coordinate(FileF, Row1), #(Bishop, White)),
+      #(Coordinate(FileG, Row1), #(Knight, White)),
+      #(Coordinate(FileH, Row1), #(Rook, White)),
+      #(Coordinate(FileA, Row2), #(Pawn, White)),
+      #(Coordinate(FileB, Row2), #(Pawn, White)),
+      #(Coordinate(FileC, Row2), #(Pawn, White)),
+      #(Coordinate(FileD, Row2), #(Pawn, White)),
+      #(Coordinate(FileE, Row2), #(Pawn, White)),
+      #(Coordinate(FileF, Row2), #(Pawn, White)),
+      #(Coordinate(FileG, Row2), #(Pawn, White)),
+      #(Coordinate(FileH, Row2), #(Pawn, White)),
+      #(Coordinate(FileA, Row8), #(Rook, Black)),
+      #(Coordinate(FileB, Row8), #(Knight, Black)),
+      #(Coordinate(FileC, Row8), #(Bishop, Black)),
+      #(Coordinate(FileD, Row8), #(Queen, Black)),
+      #(Coordinate(FileF, Row8), #(Bishop, Black)),
+      #(Coordinate(FileG, Row8), #(Knight, Black)),
+      #(Coordinate(FileH, Row8), #(Rook, Black)),
+      #(Coordinate(FileA, Row7), #(Pawn, Black)),
+      #(Coordinate(FileB, Row7), #(Pawn, Black)),
+      #(Coordinate(FileC, Row7), #(Pawn, Black)),
+      #(Coordinate(FileD, Row7), #(Pawn, Black)),
+      #(Coordinate(FileE, Row7), #(Pawn, Black)),
+      #(Coordinate(FileF, Row7), #(Pawn, Black)),
+      #(Coordinate(FileG, Row7), #(Pawn, Black)),
+      #(Coordinate(FileH, Row7), #(Pawn, Black)),
     ]),
   )
 }
@@ -796,198 +793,6 @@ fn file_move(file: File, by: Int) -> Option(File) {
       }
   }
 }
-
-/// Short hand for the square A1
-pub const coord_a1 = Coordinate(file: FileA, row: Row1)
-
-/// Short hand for the square A2
-pub const coord_a2 = Coordinate(file: FileA, row: Row2)
-
-/// Short hand for the square A3
-pub const coord_a3 = Coordinate(file: FileA, row: Row3)
-
-/// Short hand for the square A4
-pub const coord_a4 = Coordinate(file: FileA, row: Row4)
-
-/// Short hand for the square A5
-pub const coord_a5 = Coordinate(file: FileA, row: Row5)
-
-/// Short hand for the square A6
-pub const coord_a6 = Coordinate(file: FileA, row: Row6)
-
-/// Short hand for the square A7
-pub const coord_a7 = Coordinate(file: FileA, row: Row7)
-
-/// Short hand for the square A8
-pub const coord_a8 = Coordinate(file: FileA, row: Row8)
-
-/// Short hand for the square B1
-pub const coord_b1 = Coordinate(file: FileB, row: Row1)
-
-/// Short hand for the square B2
-pub const coord_b2 = Coordinate(file: FileB, row: Row2)
-
-/// Short hand for the square B3
-pub const coord_b3 = Coordinate(file: FileB, row: Row3)
-
-/// Short hand for the square B4
-pub const coord_b4 = Coordinate(file: FileB, row: Row4)
-
-/// Short hand for the square B5
-pub const coord_b5 = Coordinate(file: FileB, row: Row5)
-
-/// Short hand for the square B6
-pub const coord_b6 = Coordinate(file: FileB, row: Row6)
-
-/// Short hand for the square B7
-pub const coord_b7 = Coordinate(file: FileB, row: Row7)
-
-/// Short hand for the square B8
-pub const coord_b8 = Coordinate(file: FileB, row: Row8)
-
-/// Short hand for the square C1
-pub const coord_c1 = Coordinate(file: FileC, row: Row1)
-
-/// Short hand for the square C2
-pub const coord_c2 = Coordinate(file: FileC, row: Row2)
-
-/// Short hand for the square C3
-pub const coord_c3 = Coordinate(file: FileC, row: Row3)
-
-/// Short hand for the square C4
-pub const coord_c4 = Coordinate(file: FileC, row: Row4)
-
-/// Short hand for the square C5
-pub const coord_c5 = Coordinate(file: FileC, row: Row5)
-
-/// Short hand for the square C6
-pub const coord_c6 = Coordinate(file: FileC, row: Row6)
-
-/// Short hand for the square C7
-pub const coord_c7 = Coordinate(file: FileC, row: Row7)
-
-/// Short hand for the square C8
-pub const coord_c8 = Coordinate(file: FileC, row: Row8)
-
-/// Short hand for the square D1
-pub const coord_d1 = Coordinate(file: FileD, row: Row1)
-
-/// Short hand for the square D2
-pub const coord_d2 = Coordinate(file: FileD, row: Row2)
-
-/// Short hand for the square D3
-pub const coord_d3 = Coordinate(file: FileD, row: Row3)
-
-/// Short hand for the square D4
-pub const coord_d4 = Coordinate(file: FileD, row: Row4)
-
-/// Short hand for the square D5
-pub const coord_d5 = Coordinate(file: FileD, row: Row5)
-
-/// Short hand for the square D6
-pub const coord_d6 = Coordinate(file: FileD, row: Row6)
-
-/// Short hand for the square D7
-pub const coord_d7 = Coordinate(file: FileD, row: Row7)
-
-/// Short hand for the square D8
-pub const coord_d8 = Coordinate(file: FileD, row: Row8)
-
-/// Short hand for the square E1
-pub const coord_e1 = Coordinate(file: FileE, row: Row1)
-
-/// Short hand for the square E2
-pub const coord_e2 = Coordinate(file: FileE, row: Row2)
-
-/// Short hand for the square E3
-pub const coord_e3 = Coordinate(file: FileE, row: Row3)
-
-/// Short hand for the square E4
-pub const coord_e4 = Coordinate(file: FileE, row: Row4)
-
-/// Short hand for the square E5
-pub const coord_e5 = Coordinate(file: FileE, row: Row5)
-
-/// Short hand for the square E6
-pub const coord_e6 = Coordinate(file: FileE, row: Row6)
-
-/// Short hand for the square E7
-pub const coord_e7 = Coordinate(file: FileE, row: Row7)
-
-/// Short hand for the square E8
-pub const coord_e8 = Coordinate(file: FileE, row: Row8)
-
-/// Short hand for the square F1
-pub const coord_f1 = Coordinate(file: FileF, row: Row1)
-
-/// Short hand for the square F2
-pub const coord_f2 = Coordinate(file: FileF, row: Row2)
-
-/// Short hand for the square F3
-pub const coord_f3 = Coordinate(file: FileF, row: Row3)
-
-/// Short hand for the square F4
-pub const coord_f4 = Coordinate(file: FileF, row: Row4)
-
-/// Short hand for the square F5
-pub const coord_f5 = Coordinate(file: FileF, row: Row5)
-
-/// Short hand for the square F6
-pub const coord_f6 = Coordinate(file: FileF, row: Row6)
-
-/// Short hand for the square F7
-pub const coord_f7 = Coordinate(file: FileF, row: Row7)
-
-/// Short hand for the square F8
-pub const coord_f8 = Coordinate(file: FileF, row: Row8)
-
-/// Short hand for the square G1
-pub const coord_g1 = Coordinate(file: FileG, row: Row1)
-
-/// Short hand for the square G2
-pub const coord_g2 = Coordinate(file: FileG, row: Row2)
-
-/// Short hand for the square G3
-pub const coord_g3 = Coordinate(file: FileG, row: Row3)
-
-/// Short hand for the square G4
-pub const coord_g4 = Coordinate(file: FileG, row: Row4)
-
-/// Short hand for the square G5
-pub const coord_g5 = Coordinate(file: FileG, row: Row5)
-
-/// Short hand for the square G6
-pub const coord_g6 = Coordinate(file: FileG, row: Row6)
-
-/// Short hand for the square G7
-pub const coord_g7 = Coordinate(file: FileG, row: Row7)
-
-/// Short hand for the square G8
-pub const coord_g8 = Coordinate(file: FileG, row: Row8)
-
-/// Short hand for the square H1
-pub const coord_h1 = Coordinate(file: FileH, row: Row1)
-
-/// Short hand for the square H2
-pub const coord_h2 = Coordinate(file: FileH, row: Row2)
-
-/// Short hand for the square H3
-pub const coord_h3 = Coordinate(file: FileH, row: Row3)
-
-/// Short hand for the square H4
-pub const coord_h4 = Coordinate(file: FileH, row: Row4)
-
-/// Short hand for the square H5
-pub const coord_h5 = Coordinate(file: FileH, row: Row5)
-
-/// Short hand for the square H6
-pub const coord_h6 = Coordinate(file: FileH, row: Row6)
-
-/// Short hand for the square H7
-pub const coord_h7 = Coordinate(file: FileH, row: Row7)
-
-/// Short hand for the square H8
-pub const coord_h8 = Coordinate(file: FileH, row: Row8)
 
 const critical_error_text = "Critical internal error:\n"
   <> "Please open an issue at https://github.com/OlZe/Functional-Chess with a detailled description.\n"

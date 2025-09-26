@@ -41,6 +41,7 @@ This example showcases Gleam code, though the project may be used with any Erlan
 
 ```gleam
 import chess
+import chess/coordinates as coord
 
 pub fn main() {
   // Create a new game in standard chess starting position
@@ -50,11 +51,11 @@ pub fn main() {
   // => WaitingOnNextMove(White)
 
   // White gets all legal moves of pawn on E2
-  let _ = echo chess.get_legal_moves(game, chess.coord_e2)
+  let _ = echo chess.get_legal_moves(game, coord.e2)
   // => [E2->E3, E2->E4]
 
   // White moves pawn E2 to E4
-  let move = chess.StdFigureMove(from: chess.coord_e2, to: chess.coord_e4)
+  let move = chess.StdFigureMove(from: coord.e2, to: coord.e4)
   let assert Ok(game) = chess.player_move(game, move)
 
   // Now it's black's turn
@@ -62,11 +63,11 @@ pub fn main() {
   // => WaitingOnNextMove(Black)
 
   // Black tries to illegally move king to E5
-  let illegal_move =
-    chess.StdFigureMove(from: chess.coord_e8, to: chess.coord_e5)
+  let illegal_move = chess.StdFigureMove(from: coord.e8, to: coord.e5)
   echo chess.player_move(game, illegal_move)
-  // => Error(SelectedFigureCantGoThere)
+  // => Error(PlayerMoveIsIllegal)
 }
+
 ```
 
 ## GitHub Workflows
