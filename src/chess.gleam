@@ -59,13 +59,14 @@ pub type Player {
 
 /// Represents a coordinate pointing to a square on the chess board.
 /// 
-/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference coordinates.
-pub type Coordinate =
-  #(File, Row)
+/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference all board coordinates.
+pub type Coordinate {
+  Coordinate(file: File, row: Row)
+}
 
 /// Represents a file (vertical line of squares) of a chess board.
 /// 
-/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference coordinates.
+/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference all board coordinates.
 pub type File {
   FileA
   FileB
@@ -79,7 +80,7 @@ pub type File {
 
 /// Represents a row (horizontal line of squares) of a chess board.
 /// 
-/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference coordinates.
+/// Use the provided [`coord_*`](#coord_a1) constants to quickly reference all board coordinates.
 pub type Row {
   Row1
   Row2
@@ -346,7 +347,7 @@ fn get_moves_for_pawn(
     }
     use up_up <- option.then(coord_move(up, 0, up_direction))
     // if 'up-up' doesn't go to 'to_row' then the pawn has moved and is disqualified
-    use <- bool.guard(when: up_up.1 != to_row, return: None)
+    use <- bool.guard(when: up_up.row != to_row, return: None)
     case board_get(board, up_up) {
       // Square empty, allow
       None -> Some(up_up)
@@ -667,9 +668,9 @@ fn coord_move(
   by_file by_file: Int,
   by_row by_row: Int,
 ) -> Option(Coordinate) {
-  use new_file <- option.then(file_move(coord.0, by_file))
-  use new_row <- option.then(row_move(coord.1, by_row))
-  Some(#(new_file, new_row))
+  use new_file <- option.then(file_move(coord.file, by_file))
+  use new_row <- option.then(row_move(coord.row, by_row))
+  Some(Coordinate(file: new_file, row: new_row))
 }
 
 /// Move a row up/down `by` times
@@ -730,194 +731,194 @@ fn file_move(file: File, by: Int) -> Option(File) {
   }
 }
 
-/// Short hand for the file/row A1
-pub const coord_a1 = #(FileA, Row1)
+/// Short hand for the square A1
+pub const coord_a1 = Coordinate(file: FileA, row: Row1)
 
-/// Short hand for the file/row A2
-pub const coord_a2 = #(FileA, Row2)
+/// Short hand for the square A2
+pub const coord_a2 = Coordinate(file: FileA, row: Row2)
 
-/// Short hand for the file/row A3
-pub const coord_a3 = #(FileA, Row3)
+/// Short hand for the square A3
+pub const coord_a3 = Coordinate(file: FileA, row: Row3)
 
-/// Short hand for the file/row A4
-pub const coord_a4 = #(FileA, Row4)
+/// Short hand for the square A4
+pub const coord_a4 = Coordinate(file: FileA, row: Row4)
 
-/// Short hand for the file/row A5
-pub const coord_a5 = #(FileA, Row5)
+/// Short hand for the square A5
+pub const coord_a5 = Coordinate(file: FileA, row: Row5)
 
-/// Short hand for the file/row A6
-pub const coord_a6 = #(FileA, Row6)
+/// Short hand for the square A6
+pub const coord_a6 = Coordinate(file: FileA, row: Row6)
 
-/// Short hand for the file/row A7
-pub const coord_a7 = #(FileA, Row7)
+/// Short hand for the square A7
+pub const coord_a7 = Coordinate(file: FileA, row: Row7)
 
-/// Short hand for the file/row A8
-pub const coord_a8 = #(FileA, Row8)
+/// Short hand for the square A8
+pub const coord_a8 = Coordinate(file: FileA, row: Row8)
 
-/// Short hand for the file/row B1
-pub const coord_b1 = #(FileB, Row1)
+/// Short hand for the square B1
+pub const coord_b1 = Coordinate(file: FileB, row: Row1)
 
-/// Short hand for the file/row B2
-pub const coord_b2 = #(FileB, Row2)
+/// Short hand for the square B2
+pub const coord_b2 = Coordinate(file: FileB, row: Row2)
 
-/// Short hand for the file/row B3
-pub const coord_b3 = #(FileB, Row3)
+/// Short hand for the square B3
+pub const coord_b3 = Coordinate(file: FileB, row: Row3)
 
-/// Short hand for the file/row B4
-pub const coord_b4 = #(FileB, Row4)
+/// Short hand for the square B4
+pub const coord_b4 = Coordinate(file: FileB, row: Row4)
 
-/// Short hand for the file/row B5
-pub const coord_b5 = #(FileB, Row5)
+/// Short hand for the square B5
+pub const coord_b5 = Coordinate(file: FileB, row: Row5)
 
-/// Short hand for the file/row B6
-pub const coord_b6 = #(FileB, Row6)
+/// Short hand for the square B6
+pub const coord_b6 = Coordinate(file: FileB, row: Row6)
 
-/// Short hand for the file/row B7
-pub const coord_b7 = #(FileB, Row7)
+/// Short hand for the square B7
+pub const coord_b7 = Coordinate(file: FileB, row: Row7)
 
-/// Short hand for the file/row B8
-pub const coord_b8 = #(FileB, Row8)
+/// Short hand for the square B8
+pub const coord_b8 = Coordinate(file: FileB, row: Row8)
 
-/// Short hand for the file/row C1
-pub const coord_c1 = #(FileC, Row1)
+/// Short hand for the square C1
+pub const coord_c1 = Coordinate(file: FileC, row: Row1)
 
-/// Short hand for the file/row C2
-pub const coord_c2 = #(FileC, Row2)
+/// Short hand for the square C2
+pub const coord_c2 = Coordinate(file: FileC, row: Row2)
 
-/// Short hand for the file/row C3
-pub const coord_c3 = #(FileC, Row3)
+/// Short hand for the square C3
+pub const coord_c3 = Coordinate(file: FileC, row: Row3)
 
-/// Short hand for the file/row C4
-pub const coord_c4 = #(FileC, Row4)
+/// Short hand for the square C4
+pub const coord_c4 = Coordinate(file: FileC, row: Row4)
 
-/// Short hand for the file/row C5
-pub const coord_c5 = #(FileC, Row5)
+/// Short hand for the square C5
+pub const coord_c5 = Coordinate(file: FileC, row: Row5)
 
-/// Short hand for the file/row C6
-pub const coord_c6 = #(FileC, Row6)
+/// Short hand for the square C6
+pub const coord_c6 = Coordinate(file: FileC, row: Row6)
 
-/// Short hand for the file/row C7
-pub const coord_c7 = #(FileC, Row7)
+/// Short hand for the square C7
+pub const coord_c7 = Coordinate(file: FileC, row: Row7)
 
-/// Short hand for the file/row C8
-pub const coord_c8 = #(FileC, Row8)
+/// Short hand for the square C8
+pub const coord_c8 = Coordinate(file: FileC, row: Row8)
 
-/// Short hand for the file/row D1
-pub const coord_d1 = #(FileD, Row1)
+/// Short hand for the square D1
+pub const coord_d1 = Coordinate(file: FileD, row: Row1)
 
-/// Short hand for the file/row D2
-pub const coord_d2 = #(FileD, Row2)
+/// Short hand for the square D2
+pub const coord_d2 = Coordinate(file: FileD, row: Row2)
 
-/// Short hand for the file/row D3
-pub const coord_d3 = #(FileD, Row3)
+/// Short hand for the square D3
+pub const coord_d3 = Coordinate(file: FileD, row: Row3)
 
-/// Short hand for the file/row D4
-pub const coord_d4 = #(FileD, Row4)
+/// Short hand for the square D4
+pub const coord_d4 = Coordinate(file: FileD, row: Row4)
 
-/// Short hand for the file/row D5
-pub const coord_d5 = #(FileD, Row5)
+/// Short hand for the square D5
+pub const coord_d5 = Coordinate(file: FileD, row: Row5)
 
-/// Short hand for the file/row D6
-pub const coord_d6 = #(FileD, Row6)
+/// Short hand for the square D6
+pub const coord_d6 = Coordinate(file: FileD, row: Row6)
 
-/// Short hand for the file/row D7
-pub const coord_d7 = #(FileD, Row7)
+/// Short hand for the square D7
+pub const coord_d7 = Coordinate(file: FileD, row: Row7)
 
-/// Short hand for the file/row D8
-pub const coord_d8 = #(FileD, Row8)
+/// Short hand for the square D8
+pub const coord_d8 = Coordinate(file: FileD, row: Row8)
 
-/// Short hand for the file/row E1
-pub const coord_e1 = #(FileE, Row1)
+/// Short hand for the square E1
+pub const coord_e1 = Coordinate(file: FileE, row: Row1)
 
-/// Short hand for the file/row E2
-pub const coord_e2 = #(FileE, Row2)
+/// Short hand for the square E2
+pub const coord_e2 = Coordinate(file: FileE, row: Row2)
 
-/// Short hand for the file/row E3
-pub const coord_e3 = #(FileE, Row3)
+/// Short hand for the square E3
+pub const coord_e3 = Coordinate(file: FileE, row: Row3)
 
-/// Short hand for the file/row E4
-pub const coord_e4 = #(FileE, Row4)
+/// Short hand for the square E4
+pub const coord_e4 = Coordinate(file: FileE, row: Row4)
 
-/// Short hand for the file/row E5
-pub const coord_e5 = #(FileE, Row5)
+/// Short hand for the square E5
+pub const coord_e5 = Coordinate(file: FileE, row: Row5)
 
-/// Short hand for the file/row E6
-pub const coord_e6 = #(FileE, Row6)
+/// Short hand for the square E6
+pub const coord_e6 = Coordinate(file: FileE, row: Row6)
 
-/// Short hand for the file/row E7
-pub const coord_e7 = #(FileE, Row7)
+/// Short hand for the square E7
+pub const coord_e7 = Coordinate(file: FileE, row: Row7)
 
-/// Short hand for the file/row E8
-pub const coord_e8 = #(FileE, Row8)
+/// Short hand for the square E8
+pub const coord_e8 = Coordinate(file: FileE, row: Row8)
 
-/// Short hand for the file/row F1
-pub const coord_f1 = #(FileF, Row1)
+/// Short hand for the square F1
+pub const coord_f1 = Coordinate(file: FileF, row: Row1)
 
-/// Short hand for the file/row F2
-pub const coord_f2 = #(FileF, Row2)
+/// Short hand for the square F2
+pub const coord_f2 = Coordinate(file: FileF, row: Row2)
 
-/// Short hand for the file/row F3
-pub const coord_f3 = #(FileF, Row3)
+/// Short hand for the square F3
+pub const coord_f3 = Coordinate(file: FileF, row: Row3)
 
-/// Short hand for the file/row F4
-pub const coord_f4 = #(FileF, Row4)
+/// Short hand for the square F4
+pub const coord_f4 = Coordinate(file: FileF, row: Row4)
 
-/// Short hand for the file/row F5
-pub const coord_f5 = #(FileF, Row5)
+/// Short hand for the square F5
+pub const coord_f5 = Coordinate(file: FileF, row: Row5)
 
-/// Short hand for the file/row F6
-pub const coord_f6 = #(FileF, Row6)
+/// Short hand for the square F6
+pub const coord_f6 = Coordinate(file: FileF, row: Row6)
 
-/// Short hand for the file/row F7
-pub const coord_f7 = #(FileF, Row7)
+/// Short hand for the square F7
+pub const coord_f7 = Coordinate(file: FileF, row: Row7)
 
-/// Short hand for the file/row F8
-pub const coord_f8 = #(FileF, Row8)
+/// Short hand for the square F8
+pub const coord_f8 = Coordinate(file: FileF, row: Row8)
 
-/// Short hand for the file/row G1
-pub const coord_g1 = #(FileG, Row1)
+/// Short hand for the square G1
+pub const coord_g1 = Coordinate(file: FileG, row: Row1)
 
-/// Short hand for the file/row G2
-pub const coord_g2 = #(FileG, Row2)
+/// Short hand for the square G2
+pub const coord_g2 = Coordinate(file: FileG, row: Row2)
 
-/// Short hand for the file/row G3
-pub const coord_g3 = #(FileG, Row3)
+/// Short hand for the square G3
+pub const coord_g3 = Coordinate(file: FileG, row: Row3)
 
-/// Short hand for the file/row G4
-pub const coord_g4 = #(FileG, Row4)
+/// Short hand for the square G4
+pub const coord_g4 = Coordinate(file: FileG, row: Row4)
 
-/// Short hand for the file/row G5
-pub const coord_g5 = #(FileG, Row5)
+/// Short hand for the square G5
+pub const coord_g5 = Coordinate(file: FileG, row: Row5)
 
-/// Short hand for the file/row G6
-pub const coord_g6 = #(FileG, Row6)
+/// Short hand for the square G6
+pub const coord_g6 = Coordinate(file: FileG, row: Row6)
 
-/// Short hand for the file/row G7
-pub const coord_g7 = #(FileG, Row7)
+/// Short hand for the square G7
+pub const coord_g7 = Coordinate(file: FileG, row: Row7)
 
-/// Short hand for the file/row G8
-pub const coord_g8 = #(FileG, Row8)
+/// Short hand for the square G8
+pub const coord_g8 = Coordinate(file: FileG, row: Row8)
 
-/// Short hand for the file/row H1
-pub const coord_h1 = #(FileH, Row1)
+/// Short hand for the square H1
+pub const coord_h1 = Coordinate(file: FileH, row: Row1)
 
-/// Short hand for the file/row H2
-pub const coord_h2 = #(FileH, Row2)
+/// Short hand for the square H2
+pub const coord_h2 = Coordinate(file: FileH, row: Row2)
 
-/// Short hand for the file/row H3
-pub const coord_h3 = #(FileH, Row3)
+/// Short hand for the square H3
+pub const coord_h3 = Coordinate(file: FileH, row: Row3)
 
-/// Short hand for the file/row H4
-pub const coord_h4 = #(FileH, Row4)
+/// Short hand for the square H4
+pub const coord_h4 = Coordinate(file: FileH, row: Row4)
 
-/// Short hand for the file/row H5
-pub const coord_h5 = #(FileH, Row5)
+/// Short hand for the square H5
+pub const coord_h5 = Coordinate(file: FileH, row: Row5)
 
-/// Short hand for the file/row H6
-pub const coord_h6 = #(FileH, Row6)
+/// Short hand for the square H6
+pub const coord_h6 = Coordinate(file: FileH, row: Row6)
 
-/// Short hand for the file/row H7
-pub const coord_h7 = #(FileH, Row7)
+/// Short hand for the square H7
+pub const coord_h7 = Coordinate(file: FileH, row: Row7)
 
-/// Short hand for the file/row H8
-pub const coord_h8 = #(FileH, Row8)
+/// Short hand for the square H8
+pub const coord_h8 = Coordinate(file: FileH, row: Row8)
