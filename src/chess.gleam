@@ -41,14 +41,16 @@ pub type WinCondition {
   Checkmate
 
   /// The loser forfeited the game.
+  /// 
+  /// Use [`forfeit`](#forfeit) to end the game like this.
   Forfeit
 }
 
 /// Represents a way of drawing the game
 pub type DrawCondition {
-  /// TODO: not implemented
-  /// 
   /// Both players agreed to end the game in a draw.
+  /// 
+  /// Use [`draw`](#draw) to end the game like this.
   MutualAgreement
 
   /// A player has no legal moves left, while his king is not in check. See [here](https://www.chess.com/terms/draw-chess#stalemate) for more info.
