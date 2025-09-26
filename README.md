@@ -29,26 +29,31 @@ This example showcases Gleam code, though the project may be used with any Erlan
 
 ```gleam
 import chess
-import chess/coordinate as coord
 
 pub fn main() {
   // Create a new game in standard chess starting position
   let game = chess.new_game()
 
-  echo game.state // => WaitingOnNextMove(White)
+  echo game.status
+  // => WaitingOnNextMove(White)
 
   // White gets all legal moves of pawn on E2
-  let _ = chess.get_legal_moves(game, coord.e2) // => [E3, E4]
+  let _ = echo chess.get_legal_moves(game, chess.coord_e2)
+  // => [E2->E3, E2->E4]
 
   // White moves pawn E2 to E4
-  let assert Ok(game) = chess.player_move(game, coord.e2, coord.e4)
+  let move = chess.StdFigureMove(from: chess.coord_e2, to: chess.coord_e4)
+  let assert Ok(game) = chess.player_move(game, move)
 
   // Now it's black's turn
-  echo game.state // => WaitingOnNextMove(Black)
+  echo game.status
+  // => WaitingOnNextMove(Black)
 
   // Black tries to illegally move king to E5
-  // => Error(chess.SelectedFigureCantGoThere)
-  echo chess.player_move(game, coord.e8, coord.e5)
+  let illegal_move =
+    chess.StdFigureMove(from: chess.coord_e8, to: chess.coord_e5)
+  echo chess.player_move(game, illegal_move)
+  // => Error(SelectedFigureCantGoThere)
 }
 ```
 
