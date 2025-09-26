@@ -1,4 +1,8 @@
+//// This is the game of chess!
+//// 
 //// Refer to the [README](./index.html) for an introduction and some example code.
+//// 
+//// Use [`new_game`](#new_game) to start a game and [`player_move`](#player_move) to make game moves!
 
 import gleam/bool
 import gleam/dict
