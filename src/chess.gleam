@@ -229,9 +229,7 @@ pub fn player_move(
       use <- bool.guard(when: !is_legal, return: Error(PlayerMoveIsIllegal))
 
       // Do the move
-      // If this errors, then the previous legality verification of the move seriously malfunctioned.
-      let assert Ok(new_board) = board_move(game.board, move)
-        as critical_error_text
+      let new_board = board_move(game.board, move)
 
       // Check if game ended
       let new_status = {
@@ -393,8 +391,7 @@ fn get_legal_moves_on_arbitrary_board(
   moves
   |> set.filter(fn(move) {
     // Simulate move, then check if moving_player is still in check
-    // If this errors, then the previous determination of moves has seriously malfunctioned.
-    let assert Ok(future_board) = board_move(board, move) as critical_error_text
+    let future_board = board_move(board, move)
     !is_in_check(future_board, moving_player)
   })
   |> Ok
@@ -753,56 +750,57 @@ fn board_get(
   }
 }
 
-/// Moves a figure on the `board`.
+/// Execute a move on the `board`.
 /// 
 /// Peforms no checking wether the provided move is legal. Overrides other figures at the move's destination.
 /// 
-/// Errors if there is no figure to move.
-fn board_move(board board: Board, move move: Move) -> Result(Board, Nil) {
+/// WARNING: Panics if the move is invalid (moving from an empty square, promoting to a king)
+fn board_move(board board: Board, move move: Move) -> Board {
   case move {
     StandardMove(from:, to:) -> {
       case board {
         // Move white king
         Board(white_king:, black_king:, other_figures:) if white_king == from ->
-          Ok(Board(
+          Board(
             white_king: to,
             black_king:,
             other_figures: dict.delete(other_figures, to),
-          ))
+          )
 
         // Move black king
         Board(white_king:, black_king:, other_figures:) if black_king == from ->
-          Ok(Board(
+          Board(
             white_king:,
             black_king: to,
             other_figures: dict.delete(other_figures, to),
-          ))
+          )
 
-        // Try moving another piece
+        // Move another piece
         Board(white_king:, black_king:, other_figures:) -> {
-          use moving_figure <- result.try(dict.get(other_figures, from))
-          Ok(Board(
+          let assert Ok(moving_figure) = dict.get(other_figures, from)
+            as critical_error_text
+
+          Board(
             white_king:,
             black_king:,
             other_figures: other_figures
               |> dict.delete(from)
               |> dict.insert(to, moving_figure),
-          ))
+          )
         }
       }
     }
     PawnPromotion(from:, to:, new_figure:) -> {
-      // TODO: rethink error handling
       let assert Ok(#(Pawn, owner)) = dict.get(board.other_figures, from)
-      assert list.contains([Queen, Rook, Bishop, Knight], new_figure)
+        as critical_error_text
 
-      Ok(Board(
+      Board(
         white_king: board.white_king,
         black_king: board.black_king,
         other_figures: board.other_figures
           |> dict.delete(from)
           |> dict.insert(to, #(new_figure, owner)),
-      ))
+      )
     }
   }
 }
@@ -917,7 +915,8 @@ fn player_flip(player player: Player) -> Player {
   }
 }
 
-const critical_error_text = "Critical internal error:\n"
-  <> "Please open an issue at https://github.com/OlZe/Functional-Chess with a detailled description.\n"
-  <> "If you see this message then this likely means, that something about this package's logic is incorrect."
+const critical_error_text = "Critical internal error!\n"
+  <> "This is not your fault.\n"
+  <> "If you see this message then this likely means, that something in this package's logic is incorrect.\n"
+  <> "Please open an issue at https://github.com/OlZe/Functional-Chess with a detailled description to help improve this package.\n"
   <> "Sorry for the inconvience."
