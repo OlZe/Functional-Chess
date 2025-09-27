@@ -133,12 +133,12 @@ pub type Row {
 /// 
 /// Use [`get_legal_moves`](#get_legal_moves) to generate.
 pub type Move {
-  /// Used to move a figure from `from` to `to`
+  /// Used to move a figure from `from` to `to`.
   StandardMove(from: Coordinate, to: Coordinate)
 
   /// Used to move and promote a pawn from `from` to `to` as `new_figure`.
   /// 
-  /// `new_figure` may only be Queen, Rook, Bishop or Knight
+  /// `new_figure` may only be Queen, Rook, Bishop or Knight.
   PawnPromotion(from: Coordinate, to: Coordinate, new_figure: Figure)
 }
 
