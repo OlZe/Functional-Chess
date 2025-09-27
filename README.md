@@ -1,7 +1,7 @@
 # A chess game written in Gleam
 
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://olze.github.io/Functional-Chess/chess.html)
-[![GitHub](https://img.shields.io/badge/GitHub-source-blue)](https://olze.github.io/Functional-Chess)
+[![GitHub](https://img.shields.io/badge/GitHub-source-blue)](https://github.com/OlZe/Functional-Chess)
 
 > ⚠️🛠️ This project is a work in progress! As of now there are no releases of any kind. See the feature list below.
 
