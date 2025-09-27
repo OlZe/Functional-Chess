@@ -135,6 +135,11 @@ pub type Row {
 pub type Move {
   /// Used to move a figure from `from` to `to`
   StandardMove(from: Coordinate, to: Coordinate)
+
+  /// Used to move and promote a pawn from `from` to `to` as `new_figure`.
+  /// 
+  /// `new_figure` may only be Queen, Rook, Bishop or Knight
+  PawnPromotion(from: Coordinate, to: Coordinate, new_figure: Figure)
 }
 
 /// Represents an error when trying to select a figure.
@@ -290,12 +295,8 @@ fn is_in_check(board board: Board, player attackee: Player) -> Bool {
     |> result.map(set.to_list)
     |> result.unwrap([])
   })
-  // Check if any move goes to attacks the attackee's king
-  |> list.any(fn(move) {
-    case move {
-      StandardMove(_, to:) -> to == attackee_king
-    }
-  })
+  // Check if any moves attack the attackee's king
+  |> list.any(fn(move) { move.to == attackee_king })
 }
 
 fn is_game_ended(
@@ -428,7 +429,7 @@ fn get_unchecked_moves(
   Ok(moves)
 }
 
-/// Get all possible destinations of a pawn
+/// Get all possible mmoves of a pawn
 /// 
 /// Doesn't consider if player's king is in check.
 fn get_moves_for_pawn(
@@ -503,16 +504,31 @@ fn get_moves_for_pawn(
     }
   }
 
+  // Filter valid moves and check for pawn promotion
   let all_moves =
     [up, up_up, up_left, up_right]
     |> option.values
-    |> list.map(fn(to) { StandardMove(coord, to) })
+    |> list.flat_map(fn(to) {
+      let promotion_row = case attacker {
+        White -> Row8
+        Black -> Row1
+      }
+      case to {
+        // Pawn promotion
+        Coordinate(_, row:) if row == promotion_row -> {
+          [Knight, Bishop, Rook, Queen]
+          |> list.map(fn(new_figure) { PawnPromotion(coord, to, new_figure) })
+        }
+        // Regular pawn move
+        _ -> [StandardMove(coord, to)]
+      }
+    })
     |> set.from_list
 
   all_moves
 }
 
-/// Get all possible destinations of a king
+/// Get all possible moves of a king
 /// 
 /// Doesn't consider if player's king is in check.
 fn get_moves_for_king(
@@ -529,7 +545,7 @@ fn get_moves_for_king(
   |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
-/// Get all possible destinations of a knight
+/// Get all possible moves of a knight
 /// 
 /// Doesn't consider if player's king is in check.
 fn get_moves_for_knight(
@@ -555,7 +571,7 @@ fn get_moves_for_knight(
   |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
-/// Get all possible destinations of a rook
+/// Get all possible moves of a rook
 /// 
 /// Doesn't consider if player's king is in check.
 fn get_moves_for_rook(
@@ -572,7 +588,7 @@ fn get_moves_for_rook(
   |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
-/// Get all possible destinations of a bishop
+/// Get all possible moves of a bishop
 /// 
 /// Doesn't consider if player's king is in check.
 fn get_moves_for_bishop(
@@ -589,7 +605,7 @@ fn get_moves_for_bishop(
   |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
-/// Get all possible destinations of a queen
+/// Get all possible moves of a queen
 /// 
 /// Doesn't consider if player's king is in check.
 fn get_moves_for_queen(
@@ -606,7 +622,7 @@ fn get_moves_for_queen(
   |> set.map(fn(to) { StandardMove(coord, to) })
 }
 
-/// Used to describe how a figure can generally move
+/// Used to describe the nature of a regular figure's movement abilities
 type FigureMoveDescription {
   JumpTo(origin: Coordinate, offset: #(Int, Int), attacker: Player)
   LineOfSight(origin: Coordinate, direction: #(Int, Int), attacker: Player)
@@ -762,7 +778,7 @@ fn board_move(board board: Board, move move: Move) -> Result(Board, Nil) {
             other_figures: dict.delete(other_figures, to),
           ))
 
-        // Try move another piece
+        // Try moving another piece
         Board(white_king:, black_king:, other_figures:) -> {
           use moving_figure <- result.try(dict.get(other_figures, from))
           Ok(Board(
@@ -774,6 +790,19 @@ fn board_move(board board: Board, move move: Move) -> Result(Board, Nil) {
           ))
         }
       }
+    }
+    PawnPromotion(from:, to:, new_figure:) -> {
+      // TODO: rethink error handling
+      let assert Ok(#(Pawn, owner)) = dict.get(board.other_figures, from)
+      assert list.contains([Queen, Rook, Bishop, Knight], new_figure)
+
+      Ok(Board(
+        white_king: board.white_king,
+        black_king: board.black_king,
+        other_figures: board.other_figures
+          |> dict.delete(from)
+          |> dict.insert(to, #(new_figure, owner)),
+      ))
     }
   }
 }

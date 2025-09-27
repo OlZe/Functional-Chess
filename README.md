@@ -18,7 +18,7 @@ The API is minimal and easy to use. Refer to the [online documentation](https://
 - [ ] Move the figures according to professional chess rules
   - [x] Regular figure movement and capture
   - [x] Prohibit moves that leave the king in check
-  - [ ] Pawn Promotion
+  - [x] Pawn Promotion
   - [ ] Castling
   - [ ] En passant
 - [x] Win/Lose the game

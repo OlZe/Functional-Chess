@@ -74,6 +74,55 @@ pub fn pawn_can_move_as_white_test() {
   assert actual_moves == expected_moves
 }
 
+pub fn pawn_can_promote_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.b7, #(Pawn, White)),
+        #(coord.a8, #(Rook, Black)),
+        #(coord.c8, #(Rook, Black)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(White))
+  let selected_figure = coord.b7
+  let assert Ok(actual_moves) = c.get_legal_moves(game, selected_figure)
+
+  let expected_moves =
+    [coord.a8, coord.b8, coord.c8]
+    |> list.flat_map(fn(to) {
+      [
+        c.PawnPromotion(selected_figure, to, Queen),
+        c.PawnPromotion(selected_figure, to, Rook),
+        c.PawnPromotion(selected_figure, to, Knight),
+        c.PawnPromotion(selected_figure, to, Bishop),
+      ]
+    })
+    |> set.from_list
+
+  assert actual_moves == expected_moves
+}
+
+pub fn pawn_cannot_promote_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.b7, #(Pawn, White)),
+        #(coord.a8, #(Knight, White)),
+        #(coord.b8, #(Knight, White)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(White))
+  let selected_figure = coord.b7
+  let assert Ok(actual_moves) = c.get_legal_moves(game, selected_figure)
+
+  let expected_moves = set.new()
+  assert actual_moves == expected_moves
+}
+
 pub fn pawn_cannot_move_as_white_test() {
   let board =
     c.Board(
@@ -129,6 +178,55 @@ pub fn pawn_cannot_move_as_black_test() {
   let game = c.Game(board, c.GameOngoing(Black))
   let selected_figure = coord.b8
   let assert Ok(actual_moves) = c.get_legal_moves(game, selected_figure)
+  let expected_moves = set.new()
+  assert actual_moves == expected_moves
+}
+
+pub fn pawn_can_promote_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.b2, #(Pawn, Black)),
+        #(coord.a1, #(Rook, White)),
+        #(coord.c1, #(Rook, White)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(Black))
+  let selected_figure = coord.b2
+  let assert Ok(actual_moves) = c.get_legal_moves(game, selected_figure)
+
+  let expected_moves =
+    [coord.a1, coord.b1, coord.c1]
+    |> list.flat_map(fn(to) {
+      [
+        c.PawnPromotion(selected_figure, to, Queen),
+        c.PawnPromotion(selected_figure, to, Rook),
+        c.PawnPromotion(selected_figure, to, Knight),
+        c.PawnPromotion(selected_figure, to, Bishop),
+      ]
+    })
+    |> set.from_list
+
+  assert actual_moves == expected_moves
+}
+
+pub fn pawn_cannot_promote_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.b2, #(Pawn, Black)),
+        #(coord.a1, #(Knight, Black)),
+        #(coord.b1, #(Knight, Black)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(Black))
+  let selected_figure = coord.b2
+  let assert Ok(actual_moves) = c.get_legal_moves(game, selected_figure)
+
   let expected_moves = set.new()
   assert actual_moves == expected_moves
 }
