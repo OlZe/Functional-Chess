@@ -25,9 +25,7 @@
 //// > 🐞 This example will appear be misaligned, if it's not rendered with a monospace font.
 
 import chess as c
-import chess/coordinates as coord
 import gleam/dict
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/set
