@@ -7,9 +7,9 @@
 
 This is the game of chess implemented in [Gleam](https://gleam.run/) using a purely functional programming paradigm. Functionality is ensured through unit tests.
 
-This project has no UI or I/O. This is purely just a library to be used by other code to play chess through the public facing types/function APIs.
+This project has no UI or I/O. This is purely just a library to be used by other code to play chess through the public facing types/function APIs. However there is a basic text renderer in the submodule [`chess/text_renderer`](https://olze.github.io/Functional-Chess/chess/text_renderer.html) to let you experiment with this library before building your own UI.
 
-The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess).
+The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess/chess.html).
 
 ## Example Usage
 
