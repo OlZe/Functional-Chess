@@ -9,7 +9,7 @@ This is the game of chess implemented in [Gleam](https://gleam.run/) using a pur
 
 This project has no UI or I/O. This is purely just a library to be used by other code to play chess through the public facing types/function APIs.
 
-The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess/chess.html).
+The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess).
 
 ## Example Usage
 
@@ -28,7 +28,7 @@ pub fn main() {
 
   // White gets all legal moves of pawn on E2
   let _ = echo chess.get_legal_moves(game, coord.e2)
-  // => [E2->E3, E2->E4]
+  // => [StandardMoveAvailable(E3), StandardMoveAvailable(E4)]
 
   // White moves pawn E2 to E4
   let move = chess.StandardMove(from: coord.e2, to: coord.e4)
@@ -51,8 +51,9 @@ pub fn main() {
 > 🛠️ Features marked incomplete are still being worked on.
 
 - [x] Descriptive Error returns
-- [x] Start in standard starting position
+- [x] Start in standard chess starting position
 - [x] Request all legal moves of a given figure
+- [ ] History of past board positions and moves
 - [ ] Move the figures according to professional chess rules
   - [x] Regular figure movement and capture
   - [x] Prohibit moves that leave the king in check
@@ -75,7 +76,7 @@ pub fn main() {
 
 Unit tests `gleam test` are automatically executed on push.
 
-The [online documentation](https://olze.github.io/Functional-Chess/chess.html) is built and published automatically on push.
+The [online documentation](https://olze.github.io/Functional-Chess) is built and published automatically on push.
 
 ## Development
 
