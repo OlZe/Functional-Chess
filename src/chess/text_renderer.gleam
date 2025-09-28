@@ -34,21 +34,6 @@ import gleam/set
 import gleam/string
 import gleam_community/ansi
 
-pub fn main() {
-  let board =
-    c.Board(
-      white_king: coord.e1,
-      black_king: coord.e8,
-      other_figures: dict.from_list([#(coord.d4, #(c.Queen, c.White))]),
-    )
-  let game = c.Game(board, c.GameOngoing(c.White))
-  let selected_figure = coord.d4
-  let assert Ok(moves) = c.get_moves(game, selected_figure)
-
-  io.println(render_with_moves(game, selected_figure, moves))
-  io.println(render(game))
-}
-
 /// Like `render` but also highlights a set of available moves on the board.
 /// 
 /// Uses ANSI codes to make `selected_figure` and the background of its `moves` yellow.
