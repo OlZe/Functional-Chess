@@ -3,17 +3,20 @@
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://olze.github.io/Functional-Chess/chess.html)
 [![GitHub](https://img.shields.io/badge/GitHub-source-blue)](https://github.com/OlZe/Functional-Chess)
 
-> ⚠️🛠️ This project is a work in progress! As of now there are no releases of any kind. See the feature list below.
+> ⚠️🛠️ This project is a work in progress! As of now there are no releases of any kind. See the todo list below.
 
-This is the game of chess implemented in [Gleam](https://gleam.run/) using a purely functional programming paradigm. Functionality is ensured through unit tests.
+This is the game of chess implemented as a [Gleam](https://gleam.run/) library using a purely functional programming paradigm.
 
-This project has no UI or I/O. This is purely just a library to be used by other code to play chess through the public facing types/function APIs. However there is a basic text renderer in the submodule [`chess/text_renderer`](https://olze.github.io/Functional-Chess/chess/text_renderer.html) to let you experiment with this library before building your own UI.
+Great care has been taken to design an easy to use API with strong type safety and descriptive error returns. (Check out the [docs](https://olze.github.io/Functional-Chess/chess.html)!)
 
-The API is minimal and easy to use. Refer to the [online documentation](https://olze.github.io/Functional-Chess/chess.html).
+This project has no UI or I/O. This is purely just a library to be used by other code to avoid having to implement the game logic yourself. There is, however, a basic text renderer in the submodule [`chess/text_renderer`](https://olze.github.io/Functional-Chess/chess/text_renderer.html) which you may use to experiment with this library before building your own UI.
+
+Extensive snapshot-testing is done through [birdie](https://hexdocs.pm/birdie/) (see below).
+
 
 ## Example Usage
 
-This example showcases Gleam code, though the project may be used with any Erlang or JavaScript runtime through Gleam's toolchain.
+This example showcases Gleam code, though the project may be used with any Erlang or JavaScript runtime through Gleam's compiler options.
 
 ```gleam
 import chess
@@ -24,33 +27,41 @@ pub fn main() {
   let game = chess.new_game()
 
   echo game.status
-  // => WaitingOnNextMove(White)
+  // => GameOngoing(next_player: White)
 
   // White gets all legal moves of pawn on E2
-  let _ = echo chess.get_legal_moves(game, coord.e2)
+  let _ = echo chess.get_moves(game, coord.e2)
   // => [StandardMoveAvailable(E3), StandardMoveAvailable(E4)]
 
   // White moves pawn E2 to E4
   let move = chess.StandardMove(from: coord.e2, to: coord.e4)
-  let assert Ok(game) = chess.player_move(game, move)
+  let assert Ok(game) = {
+    chess.player_move(game, move)
+  }
 
   // Now it's black's turn
   echo game.status
-  // => WaitingOnNextMove(Black)
+  // => GameOngoing(next_player: Black)
 
   // Black tries to illegally move king to E5
   let illegal_move = chess.StandardMove(from: coord.e8, to: coord.e5)
   echo chess.player_move(game, illegal_move)
   // => Error(PlayerMoveIsIllegal)
+
+  // Black is frustrated and forfeits the game
+  let assert Ok(game) = chess.forfeit(game)
+  echo game.status
+  // => GameEnded(Victory(winner: White, by: Forfeit))
 }
 ```
 
 
-## Features
+## Features / Todos
 
 > 🛠️ Features marked incomplete are still being worked on.
 
 - [x] Descriptive Error returns
+- [x] Rigorous Testing
 - [x] Start in standard chess starting position
 - [x] Request all legal moves of a given figure
 - [ ] History of past board positions and moves
@@ -72,23 +83,43 @@ pub fn main() {
   - [ ] by the [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule)
 
 
-## GitHub Workflows
-
-Unit tests `gleam test` are automatically executed on push.
-
-The [online documentation](https://olze.github.io/Functional-Chess) is built and published automatically on push.
 
 ## Development
 
-To run tests locally:
+To compile/change the project yourself install [Gleam](https://gleam.run/) and download the source:
+
+```sh
+git clone git@github.com:OlZe/Functional-Chess.git
+cd Functional-Chess
+gleam test
+```
+
+The html docs are [built and deployed automatically](https://github.com/OlZe/Functional-Chess/blob/main/.github/workflows/publish_docs.yml) on push to `main` through GitHub Actions. If you want to build your own html docs locally use:
+
+```sh
+gleam docs build --open
+```
+
+### Testing
+
+Tests are [automatically evaluated](https://github.com/OlZe/Functional-Chess/blob/main/.github/workflows/test.yml) on push to `main` through GitHub Actions.
+
+[Birdie](https://hexdocs.pm/birdie/) is used to allow for snapshot testing, where test scenarios manipulate the chess board, pretty print it to the console, and require the user to view and confirm that the scenarios were executed correctly. See the example below.
+
+Once a test was confirmed to be correct, it will no longer require confirmation, unless the output changes, in which case birdie will show a diff between the old confirmed output and the new changed output.
+
+When cloning this repo, all snapshots should already be confirmed to be correct.
+
+![An example screenshot of a new snapshot where a chess board is pretty printed to console, with the queen's moves highlighted. The test asks to confirm whether the queen's moves are correct.](./birdie_snapshot_example.png)
+
+
+To run the tests locally, use:
 
 ```sh
 gleam test
 ```
 
-To build the html docs locally:
-
+If there are any snapshots that require confirmation use the following to view them:
 ```sh
-gleam docs build
-open build/dev/docs/chess/index.html
+gleam run -m birdie
 ```
