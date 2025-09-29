@@ -37,6 +37,7 @@ import gleam_community/ansi
 /// - `selected_figure` will be colored yellow
 /// - Squares of standard moves will have a yellow background
 /// - Squares of pawn promotion will have a blue background
+/// - Squares of en passant will have a yellow background
 /// - Faulty squares of multiple different moves have a red background to signalize an error
 /// 
 /// Do not use this if you don't want ANSI codes in the output string.
@@ -62,15 +63,25 @@ pub fn render_with_moves(
     let is_destination_pawn_promotion =
       moves |> set.contains(c.PawnPromotionAvailable(to: coord))
 
+    let is_destination_en_passant =
+      moves |> set.contains(c.EnPassantAvailable(to: coord))
+
     // Set highlight
     let square = case
       is_destination_standard_move,
-      is_destination_pawn_promotion
+      is_destination_pawn_promotion,
+      is_destination_en_passant
     {
-      True, False -> ansi.bg_yellow(square)
-      False, True -> ansi.bg_blue(square)
-      False, False -> square
-      _, _ -> ansi.bg_bright_red(square)
+      // Highlight standard move
+      True, False, False -> ansi.bg_yellow(square)
+      // Highlight pawn promotion
+      False, True, False -> ansi.bg_blue(square)
+      // Highlight en passant
+      False, False, True -> ansi.bg_yellow(square)
+      // No highlight
+      False, False, False -> square
+      // Error
+      _, _, _ -> ansi.bg_bright_red(square)
     }
 
     square

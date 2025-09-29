@@ -102,6 +102,126 @@ pub fn pawn_cannot_move_as_white_test() {
   |> birdie.snap(title: "Pawn cannot move as white.")
 }
 
+pub fn pawn_can_en_passant_left_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a7, #(Pawn, Black)),
+        #(coord.b5, #(Pawn, White)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(Black), None)
+
+  // Make a double pawn move as black to allow en passant
+  let assert Ok(after) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.a7, coord.a5)),
+    )
+
+  // Now select figure as white
+  let selected_figure = coord.b5
+  let assert Ok(moves) = c.get_moves(after, selected_figure)
+
+  combine_renders(
+    r.render(before),
+    r.render_with_moves(after, selected_figure, moves),
+  )
+  |> birdie.snap(title: "White pawn can en passant left.")
+}
+
+pub fn pawn_can_en_passant_right_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.c7, #(Pawn, Black)),
+        #(coord.b5, #(Pawn, White)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(Black), None)
+
+  // Make a double pawn move as black to allow en passant
+  let assert Ok(after) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.c7, coord.c5)),
+    )
+
+  // Now select figure as white
+  let selected_figure = coord.b5
+  let assert Ok(moves) = c.get_moves(after, selected_figure)
+
+  combine_renders(
+    r.render(before),
+    r.render_with_moves(after, selected_figure, moves),
+  )
+  |> birdie.snap(title: "White pawn can en passant right.")
+}
+
+pub fn pawn_cannot_en_passant_left_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a6, #(Pawn, Black)),
+        #(coord.b5, #(Pawn, White)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(Black), None)
+
+  // Make a single-step pawn move as black
+  let assert Ok(after) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.a6, coord.a5)),
+    )
+
+  // Now select figure as white
+  let selected_figure = coord.b5
+  let assert Ok(moves) = c.get_moves(after, selected_figure)
+
+  combine_renders(
+    r.render(before),
+    r.render_with_moves(after, selected_figure, moves),
+  )
+  |> birdie.snap(title: "White pawn cannot en passant left.")
+}
+
+pub fn pawn_cannot_en_passant_right_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.c6, #(Pawn, Black)),
+        #(coord.b5, #(Pawn, White)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(Black), None)
+
+  // Make a single-step pawn move as black
+  let assert Ok(after) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.c6, coord.c5)),
+    )
+
+  // Now select figure as white
+  let selected_figure = coord.b5
+  let assert Ok(moves) = c.get_moves(after, selected_figure)
+
+  combine_renders(
+    r.render(before),
+    r.render_with_moves(after, selected_figure, moves),
+  )
+  |> birdie.snap(title: "White pawn cannot en passant right.")
+}
+
 pub fn pawn_can_move_as_black_test() {
   let board =
     c.Board(
@@ -184,6 +304,126 @@ pub fn pawn_cannot_promote_as_black_test() {
   game
   |> r.render_with_moves(selected_figure, moves)
   |> birdie.snap(title: "Pawn cannot promote as black.")
+}
+
+pub fn pawn_can_en_passant_left_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a2, #(Pawn, White)),
+        #(coord.b4, #(Pawn, Black)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(White), None)
+
+  // Make a double pawn move as white to allow en passant
+  let assert Ok(after) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.a2, coord.a4)),
+    )
+
+  // Now select figure as black
+  let selected_figure = coord.b4
+  let assert Ok(moves) = c.get_moves(after, selected_figure)
+
+  combine_renders(
+    r.render(before),
+    r.render_with_moves(after, selected_figure, moves),
+  )
+  |> birdie.snap(title: "Black pawn can en passant left.")
+}
+
+pub fn pawn_can_en_passant_right_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.c2, #(Pawn, White)),
+        #(coord.b4, #(Pawn, Black)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(White), None)
+
+  // Make a double pawn move as black to allow en passant
+  let assert Ok(after) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.c2, coord.c4)),
+    )
+
+  // Now select figure as black
+  let selected_figure = coord.b4
+  let assert Ok(moves) = c.get_moves(after, selected_figure)
+
+  combine_renders(
+    r.render(before),
+    r.render_with_moves(after, selected_figure, moves),
+  )
+  |> birdie.snap(title: "Black pawn can en passant right.")
+}
+
+pub fn pawn_cannot_en_passant_left_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a3, #(Pawn, White)),
+        #(coord.b4, #(Pawn, Black)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(White), None)
+
+  // Make a single-step pawn move as white
+  let assert Ok(after) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.a3, coord.a4)),
+    )
+
+  // Now select figure as black
+  let selected_figure = coord.b4
+  let assert Ok(moves) = c.get_moves(after, selected_figure)
+
+  combine_renders(
+    r.render(before),
+    r.render_with_moves(after, selected_figure, moves),
+  )
+  |> birdie.snap(title: "Black pawn cannot en passant left.")
+}
+
+pub fn pawn_cannot_en_passant_right_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.c3, #(Pawn, White)),
+        #(coord.b4, #(Pawn, Black)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(White), None)
+
+  // Make a single-step pawn move as white
+  let assert Ok(after) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.c3, coord.c4)),
+    )
+
+  // Now select figure as black
+  let selected_figure = coord.b4
+  let assert Ok(moves) = c.get_moves(after, selected_figure)
+
+  combine_renders(
+    r.render(before),
+    r.render_with_moves(after, selected_figure, moves),
+  )
+  |> birdie.snap(title: "Black pawn cannot en passant right.")
 }
 
 pub fn pawn_cannot_doublemove() {
@@ -510,6 +750,32 @@ pub fn pawn_promotion_test() {
 
   combine_renders(r.render(before), r.render(after))
   |> birdie.snap("Pawn promotion from A7 to A8 to a queen.")
+}
+
+pub fn en_passant_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a7, #(Pawn, Black)),
+        #(coord.b5, #(Pawn, White)),
+      ]),
+    )
+  let start = c.Game(board, c.GameOngoing(Black), None)
+
+  // Black double moves up to allow en passant
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a7, coord.a5))
+  let assert Ok(allowed_en_passant) = c.player_move(start, move)
+
+  // White does en_passant
+  let move = c.PlayerMovesFigure(c.EnPassant(from: coord.b5, to: coord.a6))
+  let assert Ok(did_en_passant) = c.player_move(allowed_en_passant, move)
+
+  combine_renders(r.render(allowed_en_passant), r.render(did_en_passant))
+  |> birdie.snap(
+    "White en passant's from B5 to A6 and captures the black pawn on A5",
+  )
 }
 
 pub fn player_move_errors_test() {

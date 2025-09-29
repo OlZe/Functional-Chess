@@ -171,6 +171,11 @@ pub type FigureMove {
   /// 
   /// `new_figure` may only be Queen, Rook, Bishop or Knight.
   PawnPromotion(from: Coordinate, to: Coordinate, new_figure: Figure)
+
+  /// Used to do an En Passant pawn move. See [here](https://www.chess.com/terms/en-passant) for more info.
+  /// 
+  /// For `to` use the *destination* of the pawn, *not* the square of the oppsing passing pawn that will be captured.
+  EnPassant(from: Coordinate, to: Coordinate)
 }
 
 /// Represents an error when trying to select a figure.
@@ -245,6 +250,11 @@ pub type AvailableFigureMove {
   /// 
   /// To execute this move use [`PawnPromotion`](#FigureMove).
   PawnPromotionAvailable(to: Coordinate)
+
+  /// The figure is a pawn and can do an En Passant move, ending at `to` while capturing the opponent's passing pawn on the side.
+  /// 
+  /// See [here](https://www.chess.com/terms/en-passant) for more info.
+  EnPassantAvailable(to: Coordinate)
 }
 
 /// Return a list of all legal moves from a selected `figure`.
@@ -259,7 +269,12 @@ pub fn get_moves(
   case game.status {
     GameEnded(_) -> Error(GetMovesWhileGameAlreadyOver)
     GameOngoing(moving_player) ->
-      get_legal_moves_on_arbitrary_board(game.board, coord, moving_player)
+      get_legal_moves_on_arbitrary_board(
+        game.board,
+        coord,
+        moving_player,
+        game.previous_state,
+      )
       |> result.map_error(fn(e) { GetMovesWithInvalidFigure(reason: e) })
   }
 }
@@ -279,6 +294,7 @@ fn player_move_figure(
           game.board,
           move.from,
           moving_player:,
+          previous_state: game.previous_state,
         )
         |> result.map_error(fn(e) { PlayerMoveWithInvalidFigure(reason: e) })
       use available_moves <- result.try(available_moves)
@@ -287,6 +303,7 @@ fn player_move_figure(
         let move = case move {
           StandardFigureMove(_, to:) -> StandardFigureMoveAvailable(to:)
           PawnPromotion(_, _, to:) -> PawnPromotionAvailable(to:)
+          EnPassant(_, to:) -> EnPassantAvailable(to:)
         }
         set.contains(available_moves, move)
       }
@@ -297,7 +314,7 @@ fn player_move_figure(
 
       // Check if game ended
       let new_status = {
-        case is_game_ended(new_board, moving_player:) {
+        case is_game_ended(new_board, moving_player, game.previous_state) {
           None -> GameOngoing(next_player: player_flip(moving_player))
           Some(end_condition) -> GameEnded(info: end_condition)
         }
@@ -345,7 +362,11 @@ fn draw(game game: Game) -> Result(Game, Nil) {
 }
 
 /// Determines wether the player is being checked by its opponent.
-fn is_in_check(board board: Board, player attackee: Player) -> Bool {
+fn is_in_check(
+  board board: Board,
+  player attackee: Player,
+  previous_state previous_state: Option(#(Move, Game)),
+) -> Bool {
   // Check if attackee is in check by requesting all moves of all
   // attacker pieces and seeing if any of their moves hit the king
 
@@ -364,7 +385,7 @@ fn is_in_check(board board: Board, player attackee: Player) -> Bool {
   |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
   // Get all attacker moves
   |> list.flat_map(fn(coord) {
-    get_unchecked_moves(board, coord, attacker)
+    get_unchecked_moves(board, coord, attacker, previous_state)
     |> result.map(set.to_list)
     |> result.unwrap([])
   })
@@ -375,6 +396,7 @@ fn is_in_check(board board: Board, player attackee: Player) -> Bool {
 fn is_game_ended(
   board board: Board,
   moving_player moving_player: Player,
+  previous_state previous_state: Option(#(Move, Game)),
 ) -> Option(EndCondition) {
   let opponent_player = player_flip(moving_player)
 
@@ -387,10 +409,15 @@ fn is_game_ended(
   // Validate stalemate + checkmate together as they are tightly coupled
   let check_or_stalemate = {
     let opponent_has_no_moves =
-      get_all_legal_moves_on_arbitrary_board(board, opponent_player)
+      get_all_legal_moves_on_arbitrary_board(
+        board,
+        opponent_player,
+        previous_state,
+      )
       |> set.is_empty()
 
-    let opponent_is_in_check = is_in_check(board, opponent_player)
+    let opponent_is_in_check =
+      is_in_check(board, opponent_player, previous_state)
     case opponent_has_no_moves, opponent_is_in_check {
       True, True -> Some(Victory(winner: moving_player, by: Checkmated))
       True, False -> Some(Draw(by: Stalemated))
@@ -426,6 +453,7 @@ fn is_insufficient_material(board board: Board) -> Bool {
 fn get_all_legal_moves_on_arbitrary_board(
   board board: Board,
   moving_player moving_player: Player,
+  previous_state previous_state: Option(#(Move, Game)),
 ) -> set.Set(AvailableFigureMove) {
   let king = case moving_player {
     White -> board.white_king
@@ -447,7 +475,12 @@ fn get_all_legal_moves_on_arbitrary_board(
   let all_moves =
     figures
     |> set.map(fn(from) {
-      get_legal_moves_on_arbitrary_board(board, from, moving_player)
+      get_legal_moves_on_arbitrary_board(
+        board:,
+        figure: from,
+        moving_player:,
+        previous_state:,
+      )
       // result.unwrap is okay here because `from` should always be valid
       |> result.lazy_unwrap(fn() { panic as critical_error_text })
     })
@@ -463,8 +496,14 @@ fn get_legal_moves_on_arbitrary_board(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
+  previous_state previous_state: Option(#(Move, Game)),
 ) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
-  use moves <- result.try(get_unchecked_moves(board, coord, moving_player))
+  use moves <- result.try(get_unchecked_moves(
+    board,
+    coord,
+    moving_player,
+    previous_state,
+  ))
 
   // Filter moves, that leave the player in check, out
   moves
@@ -472,13 +511,15 @@ fn get_legal_moves_on_arbitrary_board(
     // Simulate move, then check if moving_player is still in check
     let executeable_move = case move {
       StandardFigureMoveAvailable(to:) -> StandardFigureMove(from: coord, to:)
+      EnPassantAvailable(to:) -> EnPassant(from: coord, to:)
 
-      // Representing a pawn promotion as a standard move is okay here, because
-      // we're only concerned whether the moving_player's king remains in check
-      PawnPromotionAvailable(to:) -> StandardFigureMove(from: coord, to:)
+      // It doesn't matter what we promote the pawn to, as we're only concerned
+      // about whether the king is in check when the pawn moves
+      PawnPromotionAvailable(to:) ->
+        PawnPromotion(from: coord, to:, new_figure: Queen)
     }
     let future_board = board_move(board, executeable_move)
-    !is_in_check(future_board, moving_player)
+    !is_in_check(future_board, moving_player, previous_state)
   })
   |> Ok
 }
@@ -490,6 +531,7 @@ fn get_unchecked_moves(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
+  previous_state previous_state: Option(#(Move, Game)),
 ) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
   let selected_figure =
     board_get(board, coord)
@@ -501,7 +543,15 @@ fn get_unchecked_moves(
   )
 
   let moves = case selected_figure {
-    Pawn -> get_moves_for_pawn(board, coord, moving_player)
+    Pawn ->
+      get_moves_for_pawn(
+        board,
+        coord,
+        moving_player,
+        previous_move: option.map(previous_state, fn(previous_state) {
+          previous_state.0
+        }),
+      )
     Bishop -> get_moves_for_bishop(board, coord, moving_player)
     King -> get_moves_for_king(board, coord, moving_player)
     Knight -> get_moves_for_knight(board, coord, moving_player)
@@ -519,6 +569,7 @@ fn get_moves_for_pawn(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
+  previous_move previous_move: Option(Move),
 ) -> set.Set(AvailableFigureMove) {
   let up_direction = case attacker {
     White -> 1
@@ -588,7 +639,7 @@ fn get_moves_for_pawn(
   }
 
   // Filter valid moves and check for pawn promotion
-  let all_moves =
+  let standard_moves =
     [up, up_up, up_left, up_right]
     |> option.values
     |> list.map(fn(to) {
@@ -606,7 +657,96 @@ fn get_moves_for_pawn(
     })
     |> set.from_list
 
+  // Check for En Passant
+  let en_passant_left = {
+    use to_file <- option.then(file_move(coord.file, -1))
+    can_en_passant(
+      board:,
+      coord:,
+      to_file:,
+      moving_player: attacker,
+      previous_move:,
+    )
+  }
+
+  let en_passant_right = {
+    use to_file <- option.then(file_move(coord.file, 1))
+    can_en_passant(
+      board:,
+      coord:,
+      to_file:,
+      moving_player: attacker,
+      previous_move:,
+    )
+  }
+
+  let all_moves =
+    [en_passant_left, en_passant_right]
+    |> option.values()
+    |> set.from_list
+    |> set.union(standard_moves)
+
   all_moves
+}
+
+fn can_en_passant(
+  board board: Board,
+  coord coord: Coordinate,
+  to_file to_file: File,
+  moving_player attacker: Player,
+  previous_move previous_move: Option(Move),
+) -> Option(AvailableFigureMove) {
+  case previous_move {
+    None -> None
+    Some(previous_move) -> {
+      // Opponent has to have moved his pawn acoording to required_previous_move
+      // and attacker's pawn has to be at required_attacker_coord
+      let #(
+        required_previous_move_from,
+        required_previous_move_to,
+        en_passant_from,
+        en_passant_to,
+      ) = case attacker {
+        White -> #(
+          Coordinate(to_file, Row7),
+          Coordinate(to_file, Row5),
+          Coordinate(coord.file, Row5),
+          Coordinate(to_file, Row6),
+        )
+        Black -> #(
+          Coordinate(to_file, Row2),
+          Coordinate(to_file, Row4),
+          Coordinate(coord.file, Row4),
+          Coordinate(to_file, Row3),
+        )
+      }
+
+      // Return if the attacker's pawn is in the wrong position
+      use <- bool.guard(when: coord != en_passant_from, return: None)
+
+      // Return if the opponent previously didn't move double-up from his pawn home row
+      use <- bool.guard(
+        when: previous_move
+          != PlayerMovesFigure(StandardFigureMove(
+          from: required_previous_move_from,
+          to: required_previous_move_to,
+        )),
+        return: None,
+      )
+
+      let previous_move_was_pawn = case
+        board_get(board, required_previous_move_to)
+      {
+        Some(#(Pawn, _)) -> True
+        _ -> False
+      }
+
+      // Return if the opponent's previous move wasn't a pawn
+      use <- bool.guard(when: !previous_move_was_pawn, return: None)
+
+      Some(EnPassantAvailable(to: en_passant_to))
+    }
+  }
 }
 
 /// Get all possible moves of a king
@@ -838,7 +978,7 @@ fn board_get(
 /// 
 /// Peforms no checking wether the provided move is legal. Overrides other figures at the move's destination.
 /// 
-/// WARNING: Panics if the move is invalid (moving from an empty square or promoting to a non-pawn)
+/// WARNING: Panics if the move is invalid (moving from an empty square or promoting or en-passanting from a non-pawn)
 fn board_move(board board: Board, move move: FigureMove) -> Board {
   case move {
     StandardFigureMove(from:, to:) -> {
@@ -884,6 +1024,21 @@ fn board_move(board board: Board, move move: FigureMove) -> Board {
         other_figures: board.other_figures
           |> dict.delete(from)
           |> dict.insert(to, #(new_figure, owner)),
+      )
+    }
+    EnPassant(from:, to:) -> {
+      let assert Ok(#(Pawn, owner)) = dict.get(board.other_figures, from)
+        as critical_error_text
+
+      let capturing_square = Coordinate(file: to.file, row: from.row)
+
+      Board(
+        white_king: board.white_king,
+        black_king: board.black_king,
+        other_figures: board.other_figures
+          |> dict.delete(from)
+          |> dict.delete(capturing_square)
+          |> dict.insert(to, #(Pawn, owner)),
       )
     }
   }

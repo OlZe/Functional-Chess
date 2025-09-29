@@ -67,8 +67,8 @@ pub fn main() {
   - [x] Regular figure movement and capture
   - [x] Prohibit moves that leave the king in check
   - [x] Pawn Promotion
+  - [x] En passant
   - [ ] Castling
-  - [ ] En passant
 - [x] Win/Lose the game
   - [x] by checkmate
   - [x] by player forfeit
