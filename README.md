@@ -63,12 +63,12 @@ pub fn main() {
 - [x] Start in standard chess starting position
 - [x] Request all legal moves of a given figure
 - [x] History of past board positions and moves
-- [ ] Move the figures according to professional chess rules
+- [x] Move the figures according to professional chess rules
   - [x] Regular figure movement and capture
   - [x] Prohibit moves that leave the king in check
   - [x] Pawn Promotion
   - [x] En passant
-  - [ ] Castling
+  - [x] Castling
 - [x] Win/Lose the game
   - [x] by checkmate
   - [x] by player forfeit

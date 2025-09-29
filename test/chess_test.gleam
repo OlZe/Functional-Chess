@@ -4,6 +4,7 @@ import chess/coordinates as coord
 import chess/text_renderer as r
 import gleam/dict
 import gleam/option.{None, Some}
+import gleam/string
 import gleeunit
 
 pub fn main() -> Nil {
@@ -518,6 +519,261 @@ pub fn king_cannot_move_test() {
   |> birdie.snap(title: "King cannot move: all adjacent squares blocked.")
 }
 
+pub fn king_can_castle_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a1, #(Rook, White)),
+        #(coord.h1, #(Rook, White)),
+        #(coord.e7, #(Pawn, Black)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(White), None)
+  let selected_figure = coord.e1
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "White King can castle both ways.")
+}
+
+pub fn king_cannot_castle_out_of_check_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a1, #(Rook, White)),
+        #(coord.h1, #(Rook, White)),
+        #(coord.e7, #(Rook, Black)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(White), None)
+  let selected_figure = coord.e1
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "White King cannot castle out of check both ways.")
+}
+
+pub fn king_cannot_castle_through_check_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a1, #(Rook, White)),
+        #(coord.h1, #(Rook, White)),
+        #(coord.d7, #(Rook, Black)),
+        #(coord.f7, #(Rook, Black)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(White), None)
+  let selected_figure = coord.e1
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "White King cannot castle through check both ways.")
+}
+
+pub fn king_cannot_castle_into_check_as_white_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a1, #(Rook, White)),
+        #(coord.h1, #(Rook, White)),
+        #(coord.c7, #(Rook, Black)),
+        #(coord.g7, #(Rook, Black)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(White), None)
+  let selected_figure = coord.e1
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "White King cannot castle into check both ways.")
+}
+
+pub fn king_cannot_castle_after_king_moved_test() {
+  let board =
+    c.Board(
+      white_king: coord.e2,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a1, #(Rook, White)),
+        #(coord.h1, #(Rook, White)),
+        #(coord.e7, #(Pawn, Black)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(White), None)
+  let assert Ok(after_king_moved) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(from: coord.e2, to: coord.e1)),
+    )
+
+  // Filler move for black as it's now black's turn
+  let assert Ok(after_black_moved) =
+    c.player_move(
+      after_king_moved,
+      c.PlayerMovesFigure(c.StandardFigureMove(from: coord.e7, to: coord.e6)),
+    )
+
+  let assert Ok(moves) = c.get_moves(after_black_moved, coord.e1)
+
+  [
+    r.render(before),
+    r.render(after_king_moved),
+    r.render_with_moves(after_black_moved, coord.e1, moves),
+  ]
+  |> combine_n_renders
+  |> birdie.snap(
+    title: "White King cannot castle both ways *after* moving king into position.",
+  )
+}
+
+pub fn king_cannot_castle_after_rooks_moved_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a2, #(Rook, White)),
+        #(coord.h2, #(Rook, White)),
+        #(coord.e7, #(Pawn, Black)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(White), None)
+  let assert Ok(after_rook1_moved) =
+    c.player_move(
+      before,
+      c.PlayerMovesFigure(c.StandardFigureMove(from: coord.a2, to: coord.a1)),
+    )
+
+  // Filler move for black as it's now black's turn
+  let assert Ok(after_black_moved1) =
+    c.player_move(
+      after_rook1_moved,
+      c.PlayerMovesFigure(c.StandardFigureMove(from: coord.e7, to: coord.e6)),
+    )
+
+  let assert Ok(after_rook2_moved) =
+    c.player_move(
+      after_black_moved1,
+      c.PlayerMovesFigure(c.StandardFigureMove(from: coord.h2, to: coord.h1)),
+    )
+
+  // Filler move for black as it's now black's turn
+  let assert Ok(after_black_moved2) =
+    c.player_move(
+      after_rook2_moved,
+      c.PlayerMovesFigure(c.StandardFigureMove(from: coord.e6, to: coord.e5)),
+    )
+
+  let assert Ok(moves) = c.get_moves(after_black_moved1, coord.e1)
+
+  [
+    r.render(before),
+    r.render(after_rook1_moved),
+    r.render(after_black_moved1),
+    r.render(after_rook2_moved),
+    r.render_with_moves(after_black_moved2, coord.e1, moves),
+  ]
+  |> combine_n_renders
+  |> birdie.snap(
+    title: "White King cannot castle both ways *after* moving rooks into position.",
+  )
+}
+
+pub fn king_can_castle_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a8, #(Rook, Black)),
+        #(coord.h8, #(Rook, Black)),
+        #(coord.e2, #(Pawn, White)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(Black), None)
+  let selected_figure = coord.e8
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Black King can castle both ways.")
+}
+
+pub fn king_cannot_castle_out_of_check_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a8, #(Rook, Black)),
+        #(coord.h8, #(Rook, Black)),
+        #(coord.e2, #(Rook, White)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(Black), None)
+  let selected_figure = coord.e8
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Black King cannot castle out of check both ways.")
+}
+
+pub fn king_cannot_castle_through_check_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a8, #(Rook, Black)),
+        #(coord.h8, #(Rook, Black)),
+        #(coord.d2, #(Rook, White)),
+        #(coord.f2, #(Rook, White)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(Black), None)
+  let selected_figure = coord.e8
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Black King cannot castle through check both ways.")
+}
+
+pub fn king_cannot_castle_into_check_as_black_test() {
+  let board =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.a8, #(Rook, Black)),
+        #(coord.h8, #(Rook, Black)),
+        #(coord.c2, #(Rook, White)),
+        #(coord.g2, #(Rook, White)),
+      ]),
+    )
+  let game = c.Game(board, c.GameOngoing(Black), None)
+  let selected_figure = coord.e8
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Black King cannot castle into check both ways.")
+}
+
 pub fn knight_can_move_test() {
   let board =
     c.Board(
@@ -991,6 +1247,11 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
   )
 }
 
-fn combine_renders(before: String, after: String) {
+fn combine_renders(before: String, after: String) -> String {
   "Start:\n" <> before <> "\n---------------------\nAfter:\n" <> after
+}
+
+fn combine_n_renders(renders: List(String)) -> String {
+  let content = string.join(renders, "\n---------------------\nNext:\n")
+  "Start:\n" <> content
 }

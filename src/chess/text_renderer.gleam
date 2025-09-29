@@ -25,6 +25,8 @@
 //// > 🐞 This example will appear be misaligned, if it's not rendered with a monospace font.
 
 import chess as c
+import chess/coordinates
+import gleam/bool
 import gleam/dict
 import gleam/list
 import gleam/option.{type Option, Some}
@@ -35,9 +37,10 @@ import gleam_community/ansi
 /// Like `render` but also highlights a set of available moves on the board through ANSI codes.
 /// 
 /// - `selected_figure` will be colored yellow
-/// - Squares of standard moves will have a yellow background
-/// - Squares of pawn promotion will have a blue background
-/// - Squares of en passant will have a yellow background
+/// - standard moves will have a yellow background
+/// - of pawn promotion moves will have a blue background
+/// - en passant moves will have a yellow background
+/// - Long/Short castling will have a yellow background at the king's destination square
 /// - Faulty squares of multiple different moves have a red background to signalize an error
 /// 
 /// Do not use this if you don't want ANSI codes in the output string.
@@ -66,22 +69,68 @@ pub fn render_with_moves(
     let is_destination_en_passant =
       moves |> set.contains(c.EnPassantAvailable(to: coord))
 
+    let is_destination_short_castle = {
+      use <- bool.guard(
+        when: !set.contains(moves, c.ShortCastleAvailable),
+        return: False,
+      )
+
+      // Short castle is in the move list.
+      // Find owner of king to determine standard castling highlight square.
+      case board_get(game.board, selected_figure) {
+        Some(#(c.King, owner)) -> {
+          let highlight_square = case owner {
+            c.White -> coordinates.g1
+            c.Black -> coordinates.g8
+          }
+          coord == highlight_square
+        }
+        _ -> False
+      }
+    }
+
+    let is_destination_long_castle = {
+      use <- bool.guard(
+        when: !set.contains(moves, c.LongCastleAvailable),
+        return: False,
+      )
+
+      // Long castle is in the move list.
+      // Find owner of king to determine standard castling highlight square.
+      case board_get(game.board, selected_figure) {
+        Some(#(c.King, owner)) -> {
+          let highlight_square = case owner {
+            c.White -> coordinates.c1
+            c.Black -> coordinates.c8
+          }
+          coord == highlight_square
+        }
+        _ -> False
+      }
+    }
+
     // Set highlight
     let square = case
       is_destination_standard_move,
       is_destination_pawn_promotion,
-      is_destination_en_passant
+      is_destination_en_passant,
+      is_destination_short_castle,
+      is_destination_long_castle
     {
       // Highlight standard move
-      True, False, False -> ansi.bg_yellow(square)
+      True, False, False, False, False -> ansi.bg_yellow(square)
       // Highlight pawn promotion
-      False, True, False -> ansi.bg_blue(square)
+      False, True, False, False, False -> ansi.bg_blue(square)
       // Highlight en passant
-      False, False, True -> ansi.bg_yellow(square)
+      False, False, True, False, False -> ansi.bg_yellow(square)
+      // Highlight short castle
+      False, False, False, True, False -> ansi.bg_yellow(square)
+      // Highlight long castle
+      False, False, False, False, True -> ansi.bg_yellow(square)
       // No highlight
-      False, False, False -> square
+      False, False, False, False, False -> square
       // Error
-      _, _, _ -> ansi.bg_bright_red(square)
+      _, _, _, _, _ -> ansi.bg_bright_red(square)
     }
 
     square
