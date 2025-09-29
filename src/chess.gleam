@@ -106,6 +106,8 @@ pub type Coordinate {
 }
 
 /// Represents a file (vertical line of squares) of a chess board.
+/// 
+/// From white's perspective is FileA is on the left side and FileH on the right side.
 pub type File {
   FileA
   FileB
@@ -118,6 +120,8 @@ pub type File {
 }
 
 /// Represents a row (horizontal line of squares) of a chess board.
+/// 
+/// From white's perspective is Row1 on the bottom and Row8 at the top.
 pub type Row {
   Row1
   Row2
@@ -205,7 +209,8 @@ pub type PlayerMoveError {
 /// 
 /// `move` is to be constructed by yourself.
 /// 
-/// Use [`get_moves`](#get_moves) to get a set of [`AvailableMove`](#AvailableMove).
+/// Use [`get_moves`](#get_moves) to get a set of [`AvailableMove`](#AvailableMove) which
+/// provide you with enough information to construct your own [`ExecuteableMove`](#ExecuteableMove) for `move`.
 /// 
 /// Errors if the provided move is not legal or the game was already over.
 pub fn player_move(
