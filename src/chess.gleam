@@ -844,7 +844,7 @@ fn get_moves_for_queen(
 }
 
 /// Used to describe the nature of a regular figure's movement abilities
-type FigureMoveDescription {
+type StandardMoveDescription {
   JumpTo(origin: Coordinate, offset: #(Int, Int), attacker: Player)
   LineOfSight(origin: Coordinate, direction: #(Int, Int), attacker: Player)
 }
@@ -852,7 +852,7 @@ type FigureMoveDescription {
 /// Use the move_description to find which squares the figure can go to
 fn evaluate_figure_move_description(
   board board: Board,
-  move_description move_description: FigureMoveDescription,
+  move_description move_description: StandardMoveDescription,
 ) -> set.Set(Coordinate) {
   case move_description {
     JumpTo(origin, #(offset_file, offset_row), attacker) -> {
