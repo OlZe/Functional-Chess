@@ -21,7 +21,7 @@
 ////   └─────────────────┘
 ////     a b c d e f g h  
 //// ```
-//// 
+////
 //// > 🐞 This example will appear be misaligned, if it's not rendered with a monospace font.
 
 import chess as c
@@ -32,9 +32,12 @@ import gleam/set
 import gleam/string
 import gleam_community/ansi
 
-/// Like `render` but also highlights a set of available moves on the board.
+/// Like `render` but also highlights a set of available moves on the board through ANSI codes.
 /// 
-/// Uses ANSI codes to make `selected_figure` and the background of its `moves` yellow.
+/// - `selected_figure` will be colored yellow
+/// - Squares of standard moves will have a yellow background
+/// - Squares of pawn promotion will have a blue background
+/// - Faulty squares of multiple different moves have a red background to signalize an error
 /// 
 /// Do not use this if you don't want ANSI codes in the output string.
 pub fn render_with_moves(
@@ -51,15 +54,23 @@ pub fn render_with_moves(
       True -> ansi.yellow(square)
     }
 
-    // Highlight available move
-    let is_move =
+    // Determine background
+    let is_destination_standard_move =
       moves
-      |> set.map(fn(move) { move.to })
-      |> set.contains(coord)
+      |> set.contains(c.StandardMoveAvailable(to: coord))
 
-    let square = case is_move {
-      False -> square
-      True -> ansi.bg_yellow(square)
+    let is_destination_pawn_promotion =
+      moves |> set.contains(c.PawnPromotionAvailable(to: coord))
+
+    // Set highlight
+    let square = case
+      is_destination_standard_move,
+      is_destination_pawn_promotion
+    {
+      True, False -> ansi.bg_yellow(square)
+      False, True -> ansi.bg_blue(square)
+      False, False -> square
+      _, _ -> ansi.bg_bright_red(square)
     }
 
     square
