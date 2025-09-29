@@ -43,7 +43,7 @@ import gleam_community/ansi
 pub fn render_with_moves(
   game game: c.Game,
   selected_figure selected_figure: c.Coordinate,
-  moves moves: set.Set(c.AvailableMove),
+  moves moves: set.Set(c.AvailableFigureMove),
 ) -> String {
   let render_square_with_moves_fn = fn(board: c.Board, coord: c.Coordinate) -> String {
     let square = render_square_plain(board:, coord:)
@@ -57,7 +57,7 @@ pub fn render_with_moves(
     // Determine background
     let is_destination_standard_move =
       moves
-      |> set.contains(c.StandardMoveAvailable(to: coord))
+      |> set.contains(c.StandardFigureMoveAvailable(to: coord))
 
     let is_destination_pawn_promotion =
       moves |> set.contains(c.PawnPromotionAvailable(to: coord))
@@ -165,16 +165,16 @@ fn render_status(status status: c.GameStatus) -> String {
   case status {
     c.GameOngoing(c.White) -> "     White's turn"
     c.GameOngoing(c.Black) -> "     Black's turn"
-    c.GameEnded(c.Victory(winner: c.White, by: c.Checkmate)) ->
+    c.GameEnded(c.Victory(winner: c.White, by: c.Checkmated)) ->
       "  Checkmate by White"
-    c.GameEnded(c.Victory(winner: c.Black, by: c.Checkmate)) ->
+    c.GameEnded(c.Victory(winner: c.Black, by: c.Checkmated)) ->
       "  Checkmate by Black"
-    c.GameEnded(c.Victory(winner: c.White, by: c.Forfeit)) ->
+    c.GameEnded(c.Victory(winner: c.White, by: c.Forfeited)) ->
       "   Forfeit by Black"
-    c.GameEnded(c.Victory(winner: c.Black, by: c.Forfeit)) ->
+    c.GameEnded(c.Victory(winner: c.Black, by: c.Forfeited)) ->
       "   Forfeit by White"
     c.GameEnded(c.Draw(by: c.MutualAgreement)) -> "     Mutual Draw"
-    c.GameEnded(c.Draw(by: c.Stalemate)) -> "      Stalemate"
+    c.GameEnded(c.Draw(by: c.Stalemated)) -> "      Stalemate"
     c.GameEnded(c.Draw(by: c.InsufficientMaterial)) -> "InsufficientMaterial"
     c.GameEnded(c.Draw(by: c.DeadPosition)) -> "    Dead Position"
     c.GameEnded(c.Draw(by: c.ThreefoldRepition)) -> " Threefold Repetition"

@@ -458,7 +458,7 @@ pub fn get_moves_errors_test() {
 
   // Game is already won/lost
   let game1 =
-    c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmate)))
+    c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmated)))
   assert c.get_moves(game1, coord.a1) == Error(c.GetMovesWhileGameAlreadyOver)
 
   // Game is already drawn
@@ -487,7 +487,7 @@ pub fn standard_move_test() {
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.StandardMove(coord.a1, coord.b2)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a1, coord.b2))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -504,7 +504,7 @@ pub fn pawn_promotion_test() {
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.PawnPromotion(coord.e7, coord.e8, Queen)
+  let move = c.PlayerMovesFigure(c.PawnPromotion(coord.e7, coord.e8, Queen))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -518,11 +518,11 @@ pub fn player_move_errors_test() {
       black_king: coord.e8,
       other_figures: dict.new(),
     )
-  let move = c.StandardMove(coord.a1, coord.a2)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a1, coord.a2))
 
   // Game is already won
   let game1 =
-    c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmate)))
+    c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmated)))
   assert c.player_move(game1, move) == Error(c.PlayerMoveWhileGameAlreadyOver)
 
   // Game is already drawn
@@ -560,7 +560,7 @@ pub fn stalemate_test() {
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.StandardMove(coord.h5, coord.b5)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.h5, coord.b5))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -578,7 +578,7 @@ pub fn checkmate_test() {
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.StandardMove(coord.a6, coord.a8)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a6, coord.a8))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -588,7 +588,7 @@ pub fn checkmate_test() {
 pub fn forfeit_test() {
   let before = c.new_game()
 
-  let assert Ok(after) = c.forfeit(before)
+  let assert Ok(after) = c.player_move(before, c.PlayerForfeits)
 
   combine_renders(r.render(before), r.render(after))
   |> birdie.snap("White forfeited in starting position.")
@@ -597,7 +597,7 @@ pub fn forfeit_test() {
 pub fn draw_through_mutual_agreement_test() {
   let before = c.new_game()
 
-  let assert Ok(after) = c.draw(before)
+  let assert Ok(after) = c.player_move(before, c.PlayersAgreeToDraw)
 
   combine_renders(r.render(before), r.render(after))
   |> birdie.snap("Draw through mutual agreement in starting position.")
@@ -613,7 +613,7 @@ pub fn insufficient_material_by_king_vs_king_test() {
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.StandardMove(coord.e1, coord.e2)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -633,7 +633,7 @@ pub fn insufficient_material_by_king_vs_king_and_bishop_test() {
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.StandardMove(coord.e1, coord.e2)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -653,7 +653,7 @@ pub fn insufficient_material_by_king_vs_king_and_knight_test() {
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.StandardMove(coord.e1, coord.e2)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -674,7 +674,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_test() {
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.StandardMove(coord.e1, coord.e2)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -695,7 +695,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
       ]),
     )
   let before = c.Game(board, c.GameOngoing(White))
-  let move = c.StandardMove(coord.e1, coord.e2)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
