@@ -62,7 +62,7 @@ pub fn main() {
 - [x] Rigorous Testing
 - [x] Start in standard chess starting position
 - [x] Request all legal moves of a given figure
-- [ ] History of past board positions and moves
+- [x] History of past board positions and moves
 - [ ] Move the figures according to professional chess rules
   - [x] Regular figure movement and capture
   - [x] Prohibit moves that leave the king in check

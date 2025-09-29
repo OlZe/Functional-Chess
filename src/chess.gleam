@@ -16,8 +16,16 @@ import gleam/set
 /// Represents entire game state.
 /// 
 /// Use [`new_game`](#new_game) to generate.
+/// 
+/// Update with [`player_move`](#player_move).
 pub type Game {
-  Game(board: Board, status: GameStatus)
+  Game(
+    board: Board,
+    status: GameStatus,
+    /// Keeps the previous game state as well as the move that transformed the previous
+    /// game state to *this* game state.
+    previous_state: Option(#(Move, Game)),
+  )
 }
 
 /// Represents if the is game still ongoing or over.
@@ -176,7 +184,7 @@ pub type SelectFigureError {
 
 /// Creates a new game in the standard starting chess position.
 pub fn new_game() -> Game {
-  Game(board: board_new(), status: GameOngoing(White))
+  Game(board: board_new(), status: GameOngoing(White), previous_state: None)
 }
 
 /// Represents an error returned by [`player_move`](#player_move).
@@ -294,7 +302,11 @@ fn player_move_figure(
           Some(end_condition) -> GameEnded(info: end_condition)
         }
       }
-      Ok(Game(new_board, new_status))
+      Ok(Game(
+        board: new_board,
+        status: new_status,
+        previous_state: Some(#(PlayerMovesFigure(move), game)),
+      ))
     }
   }
 }
@@ -310,6 +322,7 @@ fn forfeit(game game: Game) -> Result(Game, Nil) {
       Ok(Game(
         board: game.board,
         status: GameEnded(Victory(winner:, by: Forfeited)),
+        previous_state: Some(#(PlayerForfeits, game)),
       ))
     }
   }
@@ -322,7 +335,11 @@ fn draw(game game: Game) -> Result(Game, Nil) {
   case game.status {
     GameEnded(_) -> Error(Nil)
     GameOngoing(_) -> {
-      Ok(Game(board: game.board, status: GameEnded(Draw(by: MutualAgreement))))
+      Ok(Game(
+        board: game.board,
+        status: GameEnded(Draw(by: MutualAgreement)),
+        previous_state: Some(#(PlayersAgreeToDraw, game)),
+      ))
     }
   }
 }

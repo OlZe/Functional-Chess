@@ -3,6 +3,7 @@ import chess.{Bishop, Black, Knight, Pawn, Queen, Rook, White} as c
 import chess/coordinates as coord
 import chess/text_renderer as r
 import gleam/dict
+import gleam/option.{None, Some}
 import gleeunit
 
 pub fn main() -> Nil {
@@ -28,7 +29,7 @@ pub fn pawn_can_move_as_white_test() {
         #(coord.c3, #(Pawn, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.b2
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -50,7 +51,7 @@ pub fn pawn_can_promote_as_white_test() {
         #(coord.c8, #(Rook, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.b7
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -72,7 +73,7 @@ pub fn pawn_cannot_promote_as_white_test() {
         #(coord.b8, #(Knight, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.b7
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -92,7 +93,7 @@ pub fn pawn_cannot_move_as_white_test() {
         #(coord.a2, #(Pawn, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.b1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -112,7 +113,7 @@ pub fn pawn_can_move_as_black_test() {
         #(coord.c6, #(Pawn, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(Black))
+  let game = c.Game(board, c.GameOngoing(Black), None)
   let selected_figure = coord.b7
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -134,7 +135,7 @@ pub fn pawn_cannot_move_as_black_test() {
         #(coord.a4, #(Pawn, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(Black))
+  let game = c.Game(board, c.GameOngoing(Black), None)
   let selected_figure = coord.b5
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -154,7 +155,7 @@ pub fn pawn_can_promote_as_black_test() {
         #(coord.c1, #(Rook, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(Black))
+  let game = c.Game(board, c.GameOngoing(Black), None)
   let selected_figure = coord.b2
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -176,7 +177,7 @@ pub fn pawn_cannot_promote_as_black_test() {
         #(coord.b1, #(Knight, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(Black))
+  let game = c.Game(board, c.GameOngoing(Black), None)
   let selected_figure = coord.b2
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -195,7 +196,7 @@ pub fn pawn_cannot_doublemove() {
         #(coord.a3, #(Pawn, White)),
       ]),
     )
-  let game1 = c.Game(board1, c.GameOngoing(White))
+  let game1 = c.Game(board1, c.GameOngoing(White), None)
   let selected_figure1 = coord.a3
   let assert Ok(moves1) = c.get_moves(game1, selected_figure1)
   game1
@@ -212,7 +213,7 @@ pub fn pawn_cannot_doublemove() {
         #(coord.a4, #(Pawn, White)),
       ]),
     )
-  let game2 = c.Game(board2, c.GameOngoing(White))
+  let game2 = c.Game(board2, c.GameOngoing(White), None)
   let selected_figure2 = coord.a3
   let assert Ok(moves2) = c.get_moves(game2, selected_figure2)
   game2
@@ -231,7 +232,7 @@ pub fn pawn_cannot_doublemove() {
         #(coord.a5, #(Pawn, White)),
       ]),
     )
-  let game3 = c.Game(board3, c.GameOngoing(White))
+  let game3 = c.Game(board3, c.GameOngoing(White), None)
   let selected_figure3 = coord.a3
   let assert Ok(moves3) = c.get_moves(game3, selected_figure3)
   game3
@@ -248,7 +249,7 @@ pub fn king_can_move_test() {
         #(coord.a3, #(Pawn, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.b2
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -268,7 +269,7 @@ pub fn king_cannot_move_test() {
         #(coord.b1, #(Pawn, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -284,7 +285,7 @@ pub fn knight_can_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.d4, #(Knight, White))]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.d4
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -304,7 +305,7 @@ pub fn knight_cannot_move_test() {
         #(coord.c2, #(Pawn, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -320,7 +321,7 @@ pub fn rook_can_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.d4, #(Rook, White))]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.d4
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -340,7 +341,7 @@ pub fn rook_cannot_move_test() {
         #(coord.c1, #(Pawn, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -356,7 +357,7 @@ pub fn bishop_can_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.d4, #(Bishop, White))]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.d4
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -376,7 +377,7 @@ pub fn bishop_cannot_move_test() {
         #(coord.e3, #(Pawn, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.c1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -392,7 +393,7 @@ pub fn queen_can_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.d4, #(Queen, White))]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.d4
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -413,7 +414,7 @@ pub fn queen_cannot_move_test() {
         #(coord.b1, #(Pawn, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -432,7 +433,7 @@ pub fn get_moves_doesnt_stay_in_check_test() {
         #(coord.b3, #(Rook, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
 
   let selected_king = coord.a1
   let selected_rook = coord.b3
@@ -458,20 +459,20 @@ pub fn get_moves_errors_test() {
 
   // Game is already won/lost
   let game1 =
-    c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmated)))
+    c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmated)), None)
   assert c.get_moves(game1, coord.a1) == Error(c.GetMovesWhileGameAlreadyOver)
 
   // Game is already drawn
-  let game2 = c.Game(board, c.GameEnded(c.Draw(by: c.MutualAgreement)))
+  let game2 = c.Game(board, c.GameEnded(c.Draw(by: c.MutualAgreement)), None)
   assert c.get_moves(game2, coord.a1) == Error(c.GetMovesWhileGameAlreadyOver)
 
   // Select figure which doesn't exist
-  let game4 = c.Game(board, c.GameOngoing(White))
+  let game4 = c.Game(board, c.GameOngoing(White), None)
   assert c.get_moves(game4, coord.b2)
     == Error(c.GetMovesWithInvalidFigure(c.SelectedFigureDoesntExist))
 
   // Select figure which isn't friendly
-  let game5 = c.Game(board, c.GameOngoing(Black))
+  let game5 = c.Game(board, c.GameOngoing(Black), None)
   assert c.get_moves(game5, coord.a1)
     == Error(c.GetMovesWithInvalidFigure(c.SelectedFigureIsNotFriendly))
 }
@@ -486,7 +487,7 @@ pub fn standard_move_test() {
         #(coord.e7, #(Pawn, White)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a1, coord.b2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -503,7 +504,7 @@ pub fn pawn_promotion_test() {
         #(coord.e7, #(Pawn, White)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.PawnPromotion(coord.e7, coord.e8, Queen))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -522,12 +523,32 @@ pub fn player_move_errors_test() {
 
   // Game is already won
   let game1 =
-    c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmated)))
+    c.Game(board, c.GameEnded(c.Victory(winner: White, by: c.Checkmated)), None)
   assert c.player_move(game1, move) == Error(c.PlayerMoveWhileGameAlreadyOver)
 
   // Game is already drawn
-  let game2 = c.Game(board, c.GameEnded(c.Draw(by: c.MutualAgreement)))
+  let game2 = c.Game(board, c.GameEnded(c.Draw(by: c.MutualAgreement)), None)
   assert c.player_move(game2, move) == Error(c.PlayerMoveWhileGameAlreadyOver)
+}
+
+pub fn player_move_keeps_previous_state_test() {
+  let board =
+    c.Board(
+      white_king: coord.a1,
+      black_king: coord.a8,
+      other_figures: dict.from_list([
+        #(coord.e4, #(Pawn, White)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(White), None)
+  let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e4, coord.e5))
+  let assert Ok(after) = c.player_move(before, move)
+
+  let assert Some(#(previous_move_from_after, previous_state_from_after)) =
+    after.previous_state
+
+  assert previous_move_from_after == move
+  assert previous_state_from_after == before
 }
 
 pub fn player_cannot_check_himself_test() {
@@ -540,7 +561,7 @@ pub fn player_cannot_check_himself_test() {
         #(coord.b3, #(Pawn, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let game = c.Game(board, c.GameOngoing(White), None)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -559,7 +580,7 @@ pub fn stalemate_test() {
         #(coord.h5, #(Rook, White)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.h5, coord.b5))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -577,7 +598,7 @@ pub fn checkmate_test() {
         #(coord.a6, #(Rook, White)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a6, coord.a8))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -612,7 +633,7 @@ pub fn insufficient_material_by_king_vs_king_test() {
         #(coord.e2, #(Pawn, Black)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -632,7 +653,7 @@ pub fn insufficient_material_by_king_vs_king_and_bishop_test() {
         #(coord.f2, #(Bishop, White)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -652,7 +673,7 @@ pub fn insufficient_material_by_king_vs_king_and_knight_test() {
         #(coord.f2, #(Knight, White)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -673,7 +694,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_test() {
         #(coord.f6, #(Bishop, Black)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -694,7 +715,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
         #(coord.g6, #(Bishop, Black)),
       ]),
     )
-  let before = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White), None)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
