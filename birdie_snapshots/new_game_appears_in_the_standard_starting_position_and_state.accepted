@@ -1,0 +1,18 @@
+---
+version: 1.4.1
+title: New game appears in the standard starting position and state
+file: ./test/chess_test.gleam
+test_name: new_game_test
+---
+     White's turn
+  ┌─────────────────┐
+8 │ ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜ │
+7 │ ♟ ♟ ♟ ♟ ♟ ♟ ♟ ♟ │
+6 │ · · · · · · · · │
+5 │ · · · · · · · · │
+4 │ · · · · · · · · │
+3 │ · · · · · · · · │
+2 │ ♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙ │
+1 │ ♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖ │
+  └─────────────────┘
+    a b c d e f g h  

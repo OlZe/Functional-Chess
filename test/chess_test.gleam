@@ -1,54 +1,20 @@
+import birdie
 import chess.{Bishop, Black, Knight, Pawn, Queen, Rook, White} as c
 import chess/coordinates as coord
+import chess/text_renderer as r
 import gleam/dict
-import gleam/list
-import gleam/set
 import gleeunit
 
 pub fn main() -> Nil {
   gleeunit.main()
 }
 
-fn start_position() -> c.Board {
-  let other_figures =
-    dict.from_list([
-      #(coord.a1, #(Rook, White)),
-      #(coord.b1, #(Knight, White)),
-      #(coord.c1, #(Bishop, White)),
-      #(coord.d1, #(Queen, White)),
-      #(coord.f1, #(Bishop, White)),
-      #(coord.g1, #(Knight, White)),
-      #(coord.h1, #(Rook, White)),
-      #(coord.a2, #(Pawn, White)),
-      #(coord.b2, #(Pawn, White)),
-      #(coord.c2, #(Pawn, White)),
-      #(coord.d2, #(Pawn, White)),
-      #(coord.e2, #(Pawn, White)),
-      #(coord.f2, #(Pawn, White)),
-      #(coord.g2, #(Pawn, White)),
-      #(coord.h2, #(Pawn, White)),
-      #(coord.a8, #(Rook, Black)),
-      #(coord.b8, #(Knight, Black)),
-      #(coord.c8, #(Bishop, Black)),
-      #(coord.d8, #(Queen, Black)),
-      #(coord.f8, #(Bishop, Black)),
-      #(coord.g8, #(Knight, Black)),
-      #(coord.h8, #(Rook, Black)),
-      #(coord.a7, #(Pawn, Black)),
-      #(coord.b7, #(Pawn, Black)),
-      #(coord.c7, #(Pawn, Black)),
-      #(coord.d7, #(Pawn, Black)),
-      #(coord.e7, #(Pawn, Black)),
-      #(coord.f7, #(Pawn, Black)),
-      #(coord.g7, #(Pawn, Black)),
-      #(coord.h7, #(Pawn, Black)),
-    ])
-  c.Board(white_king: coord.e1, black_king: coord.e8, other_figures:)
-}
-
 pub fn new_game_test() {
-  let game = c.new_game()
-  assert game == c.Game(start_position(), c.GameOngoing(White))
+  c.new_game()
+  |> r.render()
+  |> birdie.snap(
+    title: "New game appears in the standard starting position and state",
+  )
 }
 
 pub fn pawn_can_move_as_white_test() {
@@ -64,14 +30,13 @@ pub fn pawn_can_move_as_white_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.b2
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [coord.a3, coord.b3, coord.c3, coord.b4]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(coord.b2, moves)
+  |> birdie.snap(
+    title: "Pawn can capture left/right and double-move on home row.",
+  )
 }
 
 pub fn pawn_can_promote_as_white_test() {
@@ -87,14 +52,13 @@ pub fn pawn_can_promote_as_white_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.b7
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [coord.a8, coord.b8, coord.c8]
-    |> list.map(c.PawnPromotionAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure:, moves:)
+  |> birdie.snap(
+    title: "Pawn can promote through regular move and capture left/right.",
+  )
 }
 
 pub fn pawn_cannot_promote_as_white_test() {
@@ -110,10 +74,11 @@ pub fn pawn_cannot_promote_as_white_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.b7
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves = set.new()
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure:, moves:)
+  |> birdie.snap(title: "Pawn cannot promote.")
 }
 
 pub fn pawn_cannot_move_as_white_test() {
@@ -129,9 +94,11 @@ pub fn pawn_cannot_move_as_white_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.b1
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
-  let expected_moves = set.new()
-  assert actual_moves == expected_moves
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Pawn cannot move as white.")
 }
 
 pub fn pawn_can_move_as_black_test() {
@@ -147,14 +114,13 @@ pub fn pawn_can_move_as_black_test() {
     )
   let game = c.Game(board, c.GameOngoing(Black))
   let selected_figure = coord.b7
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [coord.a6, coord.b6, coord.c6, coord.b5]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(
+    title: "Pawn can capture left/right and double-move on home row as black.",
+  )
 }
 
 pub fn pawn_cannot_move_as_black_test() {
@@ -163,16 +129,18 @@ pub fn pawn_cannot_move_as_black_test() {
       white_king: coord.e1,
       black_king: coord.e8,
       other_figures: dict.from_list([
-        #(coord.b8, #(Pawn, Black)),
-        #(coord.b7, #(Pawn, White)),
-        #(coord.a7, #(Pawn, Black)),
+        #(coord.b5, #(Pawn, Black)),
+        #(coord.b4, #(Pawn, White)),
+        #(coord.a4, #(Pawn, Black)),
       ]),
     )
   let game = c.Game(board, c.GameOngoing(Black))
-  let selected_figure = coord.b8
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
-  let expected_moves = set.new()
-  assert actual_moves == expected_moves
+  let selected_figure = coord.b5
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Pawn cannot move as black.")
 }
 
 pub fn pawn_can_promote_as_black_test() {
@@ -188,14 +156,13 @@ pub fn pawn_can_promote_as_black_test() {
     )
   let game = c.Game(board, c.GameOngoing(Black))
   let selected_figure = coord.b2
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [coord.a1, coord.b1, coord.c1]
-    |> list.map(c.PawnPromotionAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(
+    title: "Pawn can promote through regular move and capture left/right as black.",
+  )
 }
 
 pub fn pawn_cannot_promote_as_black_test() {
@@ -211,10 +178,11 @@ pub fn pawn_cannot_promote_as_black_test() {
     )
   let game = c.Game(board, c.GameOngoing(Black))
   let selected_figure = coord.b2
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves = set.new()
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Pawn cannot promote as black.")
 }
 
 pub fn pawn_cannot_doublemove() {
@@ -229,9 +197,10 @@ pub fn pawn_cannot_doublemove() {
     )
   let game1 = c.Game(board1, c.GameOngoing(White))
   let selected_figure1 = coord.a3
-  let assert Ok(actual_moves1) = c.get_moves(game1, selected_figure1)
-  let expected_moves1 = set.new()
-  assert actual_moves1 == expected_moves1
+  let assert Ok(moves1) = c.get_moves(game1, selected_figure1)
+  game1
+  |> r.render_with_moves(selected_figure1, moves1)
+  |> birdie.snap(title: "Pawn cannot double-move: not on starting position.")
 
   // Square directly in front blocked
   let board2 =
@@ -245,9 +214,12 @@ pub fn pawn_cannot_doublemove() {
     )
   let game2 = c.Game(board2, c.GameOngoing(White))
   let selected_figure2 = coord.a3
-  let assert Ok(actual_moves2) = c.get_moves(game2, selected_figure2)
-  let expected_moves2 = set.new()
-  assert actual_moves2 == expected_moves2
+  let assert Ok(moves2) = c.get_moves(game2, selected_figure2)
+  game2
+  |> r.render_with_moves(selected_figure2, moves2)
+  |> birdie.snap(
+    title: "Pawn cannot double-move: square directly in front blocked.",
+  )
 
   // Destination square blocked
   let board3 =
@@ -261,9 +233,10 @@ pub fn pawn_cannot_doublemove() {
     )
   let game3 = c.Game(board3, c.GameOngoing(White))
   let selected_figure3 = coord.a3
-  let assert Ok(actual_moves3) = c.get_moves(game3, selected_figure3)
-  let expected_moves3 = set.new()
-  assert actual_moves3 == expected_moves3
+  let assert Ok(moves3) = c.get_moves(game3, selected_figure3)
+  game3
+  |> r.render_with_moves(selected_figure3, moves3)
+  |> birdie.snap(title: "Pawn cannot double-move: destination square blocked.")
 }
 
 pub fn king_can_move_test() {
@@ -277,23 +250,11 @@ pub fn king_can_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.b2
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [
-      coord.b3,
-      coord.c3,
-      coord.c2,
-      coord.c1,
-      coord.b1,
-      coord.a1,
-      coord.a2,
-      coord.a3,
-    ]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "King can move to all adjacent squares.")
 }
 
 pub fn king_cannot_move_test() {
@@ -309,9 +270,11 @@ pub fn king_cannot_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.a1
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
-  let expected_moves = set.new()
-  assert actual_moves == expected_moves
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "King cannot move: all adjacent squares blocked.")
 }
 
 pub fn knight_can_move_test() {
@@ -323,23 +286,11 @@ pub fn knight_can_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.d4
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [
-      coord.b5,
-      coord.c6,
-      coord.e6,
-      coord.f5,
-      coord.f3,
-      coord.e2,
-      coord.c2,
-      coord.b3,
-    ]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Knight can move to all valid squares.")
 }
 
 pub fn knight_cannot_move_test() {
@@ -355,9 +306,11 @@ pub fn knight_cannot_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.a1
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
-  let expected_moves = set.new()
-  assert actual_moves == expected_moves
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Knight cannot move: all destinations blocked.")
 }
 
 pub fn rook_can_move_test() {
@@ -369,29 +322,11 @@ pub fn rook_can_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.d4
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [
-      coord.d5,
-      coord.d6,
-      coord.d7,
-      coord.d8,
-      coord.d3,
-      coord.d2,
-      coord.d1,
-      coord.e4,
-      coord.f4,
-      coord.g4,
-      coord.h4,
-      coord.c4,
-      coord.b4,
-      coord.a4,
-    ]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Rook can move to all valid squares.")
 }
 
 pub fn rook_cannot_move_test() {
@@ -407,14 +342,11 @@ pub fn rook_cannot_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.a1
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [coord.a2, coord.b1, coord.c1]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Rook's line of sight is limited.")
 }
 
 pub fn bishop_can_move_test() {
@@ -426,28 +358,11 @@ pub fn bishop_can_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.d4
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [
-      coord.e5,
-      coord.f6,
-      coord.g7,
-      coord.h8,
-      coord.c3,
-      coord.b2,
-      coord.a1,
-      coord.c5,
-      coord.b6,
-      coord.a7,
-      coord.e3,
-      coord.f2,
-      coord.g1,
-    ]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Bishop can move to all valid squares.")
 }
 
 pub fn bishop_cannot_move_test() {
@@ -463,14 +378,11 @@ pub fn bishop_cannot_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.c1
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [coord.b2, coord.d2, coord.e3]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Bishop's line of sight is blocked.")
 }
 
 pub fn queen_can_move_test() {
@@ -482,42 +394,11 @@ pub fn queen_can_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.d4
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [
-      coord.d5,
-      coord.d6,
-      coord.d7,
-      coord.d8,
-      coord.d3,
-      coord.d2,
-      coord.d1,
-      coord.e4,
-      coord.f4,
-      coord.g4,
-      coord.h4,
-      coord.c4,
-      coord.b4,
-      coord.a4,
-      coord.e5,
-      coord.f6,
-      coord.g7,
-      coord.h8,
-      coord.c3,
-      coord.b2,
-      coord.a1,
-      coord.c5,
-      coord.b6,
-      coord.a7,
-      coord.e3,
-      coord.f2,
-      coord.g1,
-    ]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Queen can move to all valid squares.")
 }
 
 pub fn queen_cannot_move_test() {
@@ -534,14 +415,11 @@ pub fn queen_cannot_move_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.a1
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
 
-  let expected_moves =
-    [coord.b1]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-
-  assert actual_moves == expected_moves
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Queen's line of sight is blocked.'")
 }
 
 pub fn get_moves_doesnt_stay_in_check_test() {
@@ -551,27 +429,23 @@ pub fn get_moves_doesnt_stay_in_check_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([
         #(coord.a8, #(Rook, Black)),
-        #(coord.b2, #(Rook, White)),
+        #(coord.b3, #(Rook, White)),
       ]),
     )
   let game = c.Game(board, c.GameOngoing(White))
 
   let selected_king = coord.a1
-  let selected_rook = coord.b2
+  let selected_rook = coord.b3
 
   let assert Ok(king_moves) = c.get_moves(game, selected_king)
-  let expected_king_moves =
-    [coord.b1]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-  assert king_moves == expected_king_moves
+  game
+  |> r.render_with_moves(selected_king, king_moves)
+  |> birdie.snap(title: "King only has moves that don't stay in check.")
 
   let assert Ok(rook_moves) = c.get_moves(game, selected_rook)
-  let expected_rook_moves =
-    [coord.a2]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-  assert rook_moves == expected_rook_moves
+  game
+  |> r.render_with_moves(selected_rook, rook_moves)
+  |> birdie.snap(title: "Rook only has moves that don't leave king in check.")
 }
 
 pub fn get_moves_errors_test() {
@@ -602,7 +476,7 @@ pub fn get_moves_errors_test() {
     == Error(c.GetMovesWithInvalidFigure(c.SelectedFigureIsNotFriendly))
 }
 
-pub fn player_move_test() {
+pub fn standard_move_test() {
   let board =
     c.Board(
       white_king: coord.a1,
@@ -612,16 +486,29 @@ pub fn player_move_test() {
         #(coord.e7, #(Pawn, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
-  let expected_board =
-    c.Board(
-      white_king: coord.b2,
-      black_king: coord.e8,
-      other_figures: dict.from_list([#(coord.e7, #(Pawn, White))]),
-    )
+  let before = c.Game(board, c.GameOngoing(White))
   let move = c.StandardMove(coord.a1, coord.b2)
-  assert c.player_move(game, move)
-    == Ok(c.Game(expected_board, c.GameOngoing(Black)))
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap("Standard move from A1 to B2 captures the figure.")
+}
+
+pub fn pawn_promotion_test() {
+  let board =
+    c.Board(
+      white_king: coord.a1,
+      black_king: coord.a8,
+      other_figures: dict.from_list([
+        #(coord.e7, #(Pawn, White)),
+      ]),
+    )
+  let before = c.Game(board, c.GameOngoing(White))
+  let move = c.PawnPromotion(coord.e7, coord.e8, Queen)
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap("Pawn promotion from A7 to A8 to a queen.")
 }
 
 pub fn player_move_errors_test() {
@@ -655,12 +542,11 @@ pub fn player_cannot_check_himself_test() {
     )
   let game = c.Game(board, c.GameOngoing(White))
   let selected_figure = coord.a1
-  let assert Ok(actual_moves) = c.get_moves(game, selected_figure)
-  let expected_moves =
-    [coord.b1]
-    |> list.map(c.StandardMoveAvailable)
-    |> set.from_list
-  assert actual_moves == expected_moves
+  let assert Ok(moves) = c.get_moves(game, selected_figure)
+
+  game
+  |> r.render_with_moves(selected_figure, moves)
+  |> birdie.snap(title: "Player cannot move into check.")
 }
 
 pub fn stalemate_test() {
@@ -673,10 +559,12 @@ pub fn stalemate_test() {
         #(coord.h5, #(Rook, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White))
   let move = c.StandardMove(coord.h5, coord.b5)
-  let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.Stalemate)))) =
-    c.player_move(game, move)
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap(title: "Move H5 to B5 results in stalemate.")
 }
 
 pub fn checkmate_test() {
@@ -689,26 +577,30 @@ pub fn checkmate_test() {
         #(coord.a6, #(Rook, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White))
   let move = c.StandardMove(coord.a6, coord.a8)
-  let assert Ok(c.Game(
-    _,
-    c.GameEnded(c.Victory(winner: White, by: c.Checkmate)),
-  )) = c.player_move(game, move)
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap(title: "Move A6 to A8 results in checkmate for white.")
 }
 
 pub fn forfeit_test() {
-  let game = c.new_game()
+  let before = c.new_game()
 
-  let assert Ok(c.Game(_, c.GameEnded(c.Victory(winner: Black, by: c.Forfeit)))) =
-    c.forfeit(game)
+  let assert Ok(after) = c.forfeit(before)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap("White forfeited in starting position.")
 }
 
 pub fn draw_through_mutual_agreement_test() {
-  let game = c.new_game()
+  let before = c.new_game()
 
-  let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.MutualAgreement)))) =
-    c.draw(game)
+  let assert Ok(after) = c.draw(before)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap("Draw through mutual agreement in starting position.")
 }
 
 pub fn insufficient_material_by_king_vs_king_test() {
@@ -720,10 +612,14 @@ pub fn insufficient_material_by_king_vs_king_test() {
         #(coord.e2, #(Pawn, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White))
   let move = c.StandardMove(coord.e1, coord.e2)
-  let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.InsufficientMaterial)))) =
-    c.player_move(game, move)
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap(
+    title: "Move E1 to E2 results in draw insufficient material. (King vs king).",
+  )
 }
 
 pub fn insufficient_material_by_king_vs_king_and_bishop_test() {
@@ -736,10 +632,14 @@ pub fn insufficient_material_by_king_vs_king_and_bishop_test() {
         #(coord.f2, #(Bishop, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White))
   let move = c.StandardMove(coord.e1, coord.e2)
-  let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.InsufficientMaterial)))) =
-    c.player_move(game, move)
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap(
+    title: "Move E1 to E2 results in draw insufficient material. (King vs king and bishop).",
+  )
 }
 
 pub fn insufficient_material_by_king_vs_king_and_knight_test() {
@@ -752,10 +652,14 @@ pub fn insufficient_material_by_king_vs_king_and_knight_test() {
         #(coord.f2, #(Knight, White)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White))
   let move = c.StandardMove(coord.e1, coord.e2)
-  let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.InsufficientMaterial)))) =
-    c.player_move(game, move)
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap(
+    title: "Move E1 to E2 results in draw insufficient material. (King vs king and knight).",
+  )
 }
 
 pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_test() {
@@ -769,10 +673,14 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_test() {
         #(coord.f6, #(Bishop, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White))
   let move = c.StandardMove(coord.e1, coord.e2)
-  let assert Ok(c.Game(_, c.GameEnded(c.Draw(by: c.InsufficientMaterial)))) =
-    c.player_move(game, move)
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap(
+    title: "Move E1 to E2 results in draw insufficient material. (King and bishop vs king and bishop, same colour).",
+  )
 }
 
 pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_test() {
@@ -786,7 +694,16 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
         #(coord.g6, #(Bishop, Black)),
       ]),
     )
-  let game = c.Game(board, c.GameOngoing(White))
+  let before = c.Game(board, c.GameOngoing(White))
   let move = c.StandardMove(coord.e1, coord.e2)
-  let assert Ok(c.Game(_, c.GameOngoing(Black))) = c.player_move(game, move)
+  let assert Ok(after) = c.player_move(before, move)
+
+  combine_renders(r.render(before), r.render(after))
+  |> birdie.snap(
+    title: "Move E1 to E2 does not result in draw: bishops are on different colours.",
+  )
+}
+
+fn combine_renders(before: String, after: String) {
+  "Start:\n" <> before <> "\n---------------------\nAfter:\n" <> after
 }

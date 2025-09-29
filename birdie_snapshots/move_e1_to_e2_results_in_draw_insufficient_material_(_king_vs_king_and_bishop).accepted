@@ -1,0 +1,33 @@
+---
+version: 1.4.1
+title: Move E1 to E2 results in draw insufficient material. (King vs king and bishop).
+file: ./test/chess_test.gleam
+test_name: insufficient_material_by_king_vs_king_and_bishop_test
+---
+Start:
+     White's turn
+  ┌─────────────────┐
+8 │ · · · · ♚ · · · │
+7 │ · · · · · · · · │
+6 │ · · · · · · · · │
+5 │ · · · · · · · · │
+4 │ · · · · · · · · │
+3 │ · · · · · · · · │
+2 │ · · · · ♟ ♗ · · │
+1 │ · · · · ♔ · · · │
+  └─────────────────┘
+    a b c d e f g h  
+---------------------
+After:
+InsufficientMaterial
+  ┌─────────────────┐
+8 │ · · · · ♚ · · · │
+7 │ · · · · · · · · │
+6 │ · · · · · · · · │
+5 │ · · · · · · · · │
+4 │ · · · · · · · · │
+3 │ · · · · · · · · │
+2 │ · · · · ♔ ♗ · · │
+1 │ · · · · · · · · │
+  └─────────────────┘
+    a b c d e f g h  
