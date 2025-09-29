@@ -35,9 +35,7 @@ pub fn main() {
 
   // White moves pawn E2 to E4
   let move = chess.StandardMove(from: coord.e2, to: coord.e4)
-  let assert Ok(game) = {
-    chess.player_move(game, move)
-  }
+  let assert Ok(game) = chess.player_move(game, move)
 
   // Now it's black's turn
   echo game.status
@@ -110,7 +108,7 @@ Once a test was confirmed to be correct, it will no longer require confirmation,
 
 When cloning this repo, all snapshots should already be confirmed to be correct.
 
-![An example screenshot of a new snapshot where a chess board is pretty printed to console, with the queen's moves highlighted. The test asks to confirm whether the queen's moves are correct.](./birdie_snapshot_example.png)
+![An example screenshot of a new snapshot where a chess board is pretty printed to console, with the queen's moves highlighted. The test asks to confirm whether the queen's moves are correct.](https://github.com/OlZe/Functional-Chess/blob/main/birdie_snapshot_example.png?raw=true)
 
 
 To run the tests locally, use:
