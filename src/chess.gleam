@@ -22,9 +22,18 @@ pub opaque type GameState {
   GameState(internal: OngoingGameState, status: GameStatus)
 }
 
-/// Like `GameState` but verified its status to be `GameOngoing`
+/// Game state, which is verified to not have ended.
 type OngoingGameState {
-  OngoingGameState(board: Board, moving_player: Player)
+  OngoingGameState(
+    board: Board,
+    moving_player: Player,
+    /// `File` says in which file the opponent just double-moved a pawn
+    en_passant_possible: Option(File),
+    short_castle_disqualified_white: Bool,
+    long_castle_disqualified_white: Bool,
+    short_castle_disqualified_black: Bool,
+    long_castle_disqualified_black: Bool,
+  )
 }
 
 /// Represents if the is game still ongoing or over.
@@ -212,8 +221,36 @@ pub fn new_custom_game(
   board board: Board,
   first_player player: Player,
 ) -> GameState {
+  let #(white_short_castle, white_long_castle) = {
+    use <- bool.guard(
+      when: board.white_king != Coordinate(FileE, Row1),
+      return: #(False, False),
+    )
+    let shrt = board_get(board, Coordinate(FileH, Row1)) == Some(#(Rook, White))
+    let long = board_get(board, Coordinate(FileA, Row1)) == Some(#(Rook, White))
+    #(shrt, long)
+  }
+
+  let #(black_short_castle, black_long_castle) = {
+    use <- bool.guard(
+      when: board.black_king != Coordinate(FileE, Row8),
+      return: #(False, False),
+    )
+    let shrt = board_get(board, Coordinate(FileH, Row8)) == Some(#(Rook, Black))
+    let long = board_get(board, Coordinate(FileA, Row8)) == Some(#(Rook, Black))
+    #(shrt, long)
+  }
+
   GameState(
-    internal: OngoingGameState(board:, moving_player: player),
+    internal: OngoingGameState(
+      board:,
+      moving_player: player,
+      en_passant_possible: None,
+      short_castle_disqualified_white: !white_short_castle,
+      long_castle_disqualified_white: !white_long_castle,
+      short_castle_disqualified_black: !black_short_castle,
+      long_castle_disqualified_black: !black_long_castle,
+    ),
     status: GameOngoing(player),
   )
 }
@@ -358,9 +395,16 @@ fn player_move_figure(
     let new_status = {
       case is_game_ended(new_game) {
         Some(end_condition) -> GameEnded(info: end_condition)
-        None -> GameOngoing(next_player: player_flip(game.moving_player))
+        None -> GameOngoing(next_player: player_flip(new_game.moving_player))
       }
     }
+
+    // Don't forget to flip the player on the internal game state too
+    let new_game =
+      OngoingGameState(
+        ..new_game,
+        moving_player: player_flip(new_game.moving_player),
+      )
     Ok(GameState(internal: new_game, status: new_status))
   }
 }
@@ -376,7 +420,7 @@ fn draw(game game: OngoingGameState) -> GameState {
   GameState(internal: game, status: GameEnded(Draw(by: MutualAgreement)))
 }
 
-/// Determines wether the player is being checked by its opponent.
+/// Determines whether the player is being checked by its opponent.
 fn is_in_check(game game: OngoingGameState) -> Bool {
   // Check if attackee is in check by requesting all moves of all
   // attacker pieces and seeing if any of their moves hit the king
@@ -827,18 +871,10 @@ fn get_unchecked_moves_for_pawn(
     |> set.from_list
 
   // Check for En Passant
-  let en_passant_left = {
-    use to_file <- option.then(file_move(coord.file, -1))
-    can_en_passant(game:, coord:, to_file:)
-  }
-
-  let en_passant_right = {
-    use to_file <- option.then(file_move(coord.file, 1))
-    can_en_passant(game:, coord:, to_file:)
-  }
+  let en_passant = can_en_passant(game:, coord:)
 
   let all_moves =
-    [en_passant_left, en_passant_right]
+    [en_passant]
     |> option.values()
     |> set.from_list
     |> set.union(standard_moves)
@@ -846,72 +882,29 @@ fn get_unchecked_moves_for_pawn(
   all_moves
 }
 
-// TODO:
 fn can_en_passant(
   game game: OngoingGameState,
-  coord coord: Coordinate,
-  to_file to_file: File,
+  coord pawn_pos: Coordinate,
 ) -> Option(AvailableFigureMove) {
-  None
+  use to_file <- option.then(game.en_passant_possible)
+
+  // Check en passant from left and right file
+  [file_move(to_file, -1), file_move(to_file, 1)]
+  |> option.values()
+  |> list.find_map(fn(from_file) {
+    let #(en_passant_from, en_passant_to) = {
+      case game.moving_player {
+        White -> #(Coordinate(from_file, Row5), Coordinate(to_file, Row6))
+        Black -> #(Coordinate(from_file, Row4), Coordinate(to_file, Row3))
+      }
+    }
+    case pawn_pos == en_passant_from {
+      True -> Ok(EnPassantAvailable(to: en_passant_to))
+      False -> Error(Nil)
+    }
+  })
+  |> option.from_result
 }
-
-// fn can_en_passant(
-//   game game: OngoingGameState,
-//   coord coord: Coordinate,
-//   to_file to_file: File,
-// ) -> Option(AvailableFigureMove) {
-//   case game.previous_state {
-//     None -> None
-//     Some(#(previous_move, _)) -> {
-//       // Opponent has to have moved his pawn acoording to required_previous_move
-//       // and attacker's pawn has to be at required_attacker_coord
-//       let #(
-//         required_previous_move_from,
-//         required_previous_move_to,
-//         en_passant_from,
-//         en_passant_to,
-//       ) = case game.moving_player {
-//         White -> #(
-//           Coordinate(to_file, Row7),
-//           Coordinate(to_file, Row5),
-//           Coordinate(coord.file, Row5),
-//           Coordinate(to_file, Row6),
-//         )
-//         Black -> #(
-//           Coordinate(to_file, Row2),
-//           Coordinate(to_file, Row4),
-//           Coordinate(coord.file, Row4),
-//           Coordinate(to_file, Row3),
-//         )
-//       }
-
-//       // Return if the attacker's pawn is in the wrong position
-//       use <- bool.guard(when: coord != en_passant_from, return: None)
-
-//       // Return if the opponent previously didn't move double-up from his pawn home row
-//       use <- bool.guard(
-//         when: previous_move
-//           != PlayerMovesFigure(StandardFigureMove(
-//           from: required_previous_move_from,
-//           to: required_previous_move_to,
-//         )),
-//         return: None,
-//       )
-
-//       let previous_move_was_pawn = case
-//         board_get(game.board, required_previous_move_to)
-//       {
-//         Some(#(Pawn, _)) -> True
-//         _ -> False
-//       }
-
-//       // Return if the opponent's previous move wasn't a pawn
-//       use <- bool.guard(when: !previous_move_was_pawn, return: None)
-
-//       Some(EnPassantAvailable(to: en_passant_to))
-//     }
-//   }
-// }
 
 /// Get all possible moves of a king
 /// 
@@ -957,154 +950,160 @@ fn get_unchecked_moves_for_king(
   all_moves
 }
 
-/// Checks whether the position allows for castling.
-/// 
-/// Also traverses entire state history to see if king or rook have ever been moved.
-/// 
-/// First bool is for short castle, second bool for long castle.
-/// TODO:
+/// Checks whether the position allows for short castling.
 fn can_short_castle(game game: OngoingGameState) -> Bool {
-  False
+  case game.moving_player {
+    White -> {
+      use <- bool.guard(
+        when: game.short_castle_disqualified_white,
+        return: False,
+      )
+
+      // assertions are okay, as when the king or rook moves, the
+      // previously checked disqualifier flag should cause an early return.
+      assert board_get(game.board, Coordinate(FileE, Row1))
+        == Some(#(King, White))
+        as critical_error_text
+
+      assert board_get(game.board, Coordinate(FileH, Row1))
+        == Some(#(Rook, White))
+        as critical_error_text
+
+      can_castle_helper(
+        game:,
+        required_empty: [Coordinate(FileF, Row1), Coordinate(FileG, Row1)],
+        required_not_in_check: [
+          Coordinate(FileE, Row1),
+          Coordinate(FileF, Row1),
+          Coordinate(FileG, Row1),
+        ],
+      )
+    }
+    Black -> {
+      use <- bool.guard(
+        when: game.short_castle_disqualified_black,
+        return: False,
+      )
+
+      // assertions are okay, as when the king or rook moves, the
+      // previously checked disqualifier flag should cause an early return.
+      assert board_get(game.board, Coordinate(FileE, Row8))
+        == Some(#(King, Black))
+        as critical_error_text
+
+      assert board_get(game.board, Coordinate(FileH, Row8))
+        == Some(#(Rook, Black))
+        as critical_error_text
+
+      can_castle_helper(
+        game:,
+        required_empty: [Coordinate(FileF, Row8), Coordinate(FileG, Row8)],
+        required_not_in_check: [
+          Coordinate(FileE, Row8),
+          Coordinate(FileF, Row8),
+          Coordinate(FileG, Row8),
+        ],
+      )
+    }
+  }
 }
 
-// fn can_short_castle(game game: OngoingGameState) -> Bool {
-//   let board = game.board
-//   let moving_player = game.moving_player
-//   let previous_state = game.previous_state
-
-//   let row = case moving_player {
-//     White -> Row1
-//     Black -> Row8
-//   }
-
-//   let king_from = Coordinate(FileE, row)
-//   let king_to = Coordinate(FileG, row)
-//   let rook_from = Coordinate(FileH, row)
-//   let rook_to = Coordinate(FileF, row)
-
-//   let figures_are_in_position = {
-//     // King in position
-//     use <- bool.guard(
-//       when: board_get(board, king_from) != Some(#(King, moving_player)),
-//       return: False,
-//     )
-//     // King destination is free
-//     use <- bool.guard(when: board_get(board, king_to) != None, return: False)
-//     // Rook in position
-//     use <- bool.guard(
-//       when: board_get(board, rook_from) != Some(#(Rook, moving_player)),
-//       return: False,
-//     )
-//     // Rook destination is free
-//     use <- bool.guard(when: board_get(board, rook_to) != None, return: False)
-//     True
-//   }
-
-//   use <- bool.guard(when: !figures_are_in_position, return: False)
-
-//   // Check that player doesn't castle from, through, or into a check
-//   let goes_through_check = {
-//     [king_from, rook_to, king_to]
-//     |> list.map(StandardFigureMove(king_from, _))
-//     |> list.map(execute_move(game, _))
-//     |> list.any(is_in_check)
-//   }
-
-//   use <- bool.guard(when: goes_through_check, return: False)
-
-//   // Go through entire state history to find whether king or rook have ever moved
-//   king_and_rook_have_never_moved(king_from, rook_from, previous_state)
-// }
-
-// TODO:
+/// Checks whether the position allows for long castling.
 fn can_long_castle(game game: OngoingGameState) -> Bool {
-  False
+  case game.moving_player {
+    White -> {
+      use <- bool.guard(
+        when: game.long_castle_disqualified_white,
+        return: False,
+      )
+
+      // assertions are okay, as when the king or rook moves, the
+      // previously checked disqualifier flag should cause an early return.
+      assert board_get(game.board, Coordinate(FileE, Row1))
+        == Some(#(King, White))
+        as critical_error_text
+
+      assert board_get(game.board, Coordinate(FileA, Row1))
+        == Some(#(Rook, White))
+        as critical_error_text
+
+      can_castle_helper(
+        game:,
+        required_empty: [
+          Coordinate(FileD, Row1),
+          Coordinate(FileC, Row1),
+          Coordinate(FileB, Row1),
+        ],
+        required_not_in_check: [
+          Coordinate(FileE, Row1),
+          Coordinate(FileD, Row1),
+          Coordinate(FileC, Row1),
+        ],
+      )
+    }
+    Black -> {
+      use <- bool.guard(
+        when: game.long_castle_disqualified_black,
+        return: False,
+      )
+
+      // assertions are okay, as when the king or rook moves, the
+      // previously checked disqualifier flag should cause an early return.
+      assert board_get(game.board, Coordinate(FileE, Row8))
+        == Some(#(King, Black))
+        as critical_error_text
+
+      assert board_get(game.board, Coordinate(FileA, Row8))
+        == Some(#(Rook, Black))
+        as critical_error_text
+
+      can_castle_helper(
+        game:,
+        required_empty: [
+          Coordinate(FileD, Row8),
+          Coordinate(FileC, Row8),
+          Coordinate(FileB, Row8),
+        ],
+        required_not_in_check: [
+          Coordinate(FileE, Row8),
+          Coordinate(FileD, Row8),
+          Coordinate(FileC, Row8),
+        ],
+      )
+    }
+  }
 }
 
-// fn can_long_castle(game game: OngoingGameState) -> Bool {
-//   let board = game.board
-//   let moving_player = game.moving_player
-//   let previous_state = game.previous_state
+fn can_castle_helper(
+  game game: OngoingGameState,
+  required_empty required_empty: List(Coordinate),
+  required_not_in_check required_not_in_check: List(Coordinate),
+) -> Bool {
+  // Check that inbetween tiles are empty
+  let inbetween_is_empty =
+    required_empty
+    |> list.all(fn(inbetween_coord) {
+      board_get(game.board, inbetween_coord)
+      |> option.is_none()
+    })
 
-//   let row = case moving_player {
-//     White -> Row1
-//     Black -> Row8
-//   }
+  // Early return if inbetween tiles aren't empty
+  use <- bool.guard(when: !inbetween_is_empty, return: False)
 
-//   let king_from = Coordinate(FileE, row)
-//   let king_to = Coordinate(FileC, row)
-//   let rook_from = Coordinate(FileA, row)
-//   let rook_to = Coordinate(FileD, row)
-//   let inbetween = Coordinate(FileB, row)
+  let king_from = case game.moving_player {
+    White -> Coordinate(FileE, Row1)
+    Black -> Coordinate(FileE, Row8)
+  }
 
-//   let figures_are_in_position = {
-//     // King is in position
-//     use <- bool.guard(
-//       when: board_get(board, king_from) != Some(#(King, moving_player)),
-//       return: False,
-//     )
-//     // King destination is free
-//     use <- bool.guard(when: board_get(board, king_to) != None, return: False)
-//     // Rook is in position
-//     use <- bool.guard(
-//       when: board_get(board, rook_from) != Some(#(Rook, moving_player)),
-//       return: False,
-//     )
-//     // Rook destination is free
-//     use <- bool.guard(when: board_get(board, rook_to) != None, return: False)
-//     // Inbetween square is free
-//     use <- bool.guard(when: board_get(board, inbetween) != None, return: False)
-//     True
-//   }
+  // Check if the king is castling from, through, into a check
+  let goes_through_check =
+    required_not_in_check
+    |> list.map(StandardFigureMove(king_from, _))
+    |> list.map(do_move(game, _))
+    |> list.any(is_in_check)
 
-//   use <- bool.guard(when: !figures_are_in_position, return: False)
-
-//   // Check that player doesn't castle from, through, or into a check
-//   let goes_through_check = {
-//     [king_from, rook_to, king_to]
-//     |> list.map(StandardFigureMove(king_from, _))
-//     |> list.map(execute_move(game, _))
-//     |> list.any(is_in_check)
-//   }
-
-//   use <- bool.guard(when: goes_through_check, return: False)
-
-//   // Go through entire state history to find whether king or rook have ever moved
-//   king_and_rook_have_never_moved(king_from, rook_from, previous_state)
-// }
-
-// fn king_and_rook_have_never_moved(
-//   king_start_coord king: Coordinate,
-//   rook_start_coord rook: Coordinate,
-//   previous_state previous_state: Option(#(Move, OngoingGameState)),
-// ) -> Bool {
-//   // Recursively traverse entire state history and check for every
-//   // state, that king and rook are in their right positions.
-//   case previous_state {
-//     // base case, no more previous states
-//     None -> True
-//     Some(#(_, previous_game)) -> {
-//       let king_in_position = case board_get(previous_game.board, king) {
-//         Some(#(King, _)) -> True
-//         _ -> False
-//       }
-
-//       let rook_in_position = case board_get(previous_game.board, rook) {
-//         Some(#(Rook, _)) -> True
-//         _ -> False
-//       }
-
-//       // base case, king and rook have moved
-//       use <- bool.guard(
-//         when: !king_in_position || !rook_in_position,
-//         return: False,
-//       )
-
-//       // king and rook look good so far. keep exploring the history.
-//       king_and_rook_have_never_moved(king, rook, previous_game.previous_state)
-//     }
-//   }
-// }
+  !goes_through_check
+}
 
 /// Get all possible moves of a knight
 /// 
@@ -1321,7 +1320,7 @@ fn board_get_amount_figures(board board: Board) -> Int {
   dict.size(board.other_figures) + 2
 }
 
-/// Execute a `FigureMove`.
+/// Execute a `FigureMove` and returns a new `OngoingGameState`. Does not flip `moving_player`.
 /// 
 /// Peforms no checking wether the provided move is legal. Overrides other figures at the move's destination.
 /// 
@@ -1333,23 +1332,36 @@ fn do_move(
   let board = game.board
   let moving_player = game.moving_player
 
-  let new_board = case move {
+  // Dear lord forgive me for this monster case, but idk how to do it better
+  case move {
     StandardFigureMove(from:, to:) -> {
       case board {
         // Move white king
         Board(white_king:, black_king:, other_figures:) if white_king == from ->
-          Board(
-            white_king: to,
-            black_king:,
-            other_figures: dict.delete(other_figures, to),
+          OngoingGameState(
+            ..game,
+            en_passant_possible: None,
+            short_castle_disqualified_white: True,
+            long_castle_disqualified_white: True,
+            board: Board(
+              white_king: to,
+              black_king:,
+              other_figures: dict.delete(other_figures, to),
+            ),
           )
 
         // Move black king
         Board(white_king:, black_king:, other_figures:) if black_king == from ->
-          Board(
-            white_king:,
-            black_king: to,
-            other_figures: dict.delete(other_figures, to),
+          OngoingGameState(
+            ..game,
+            en_passant_possible: None,
+            short_castle_disqualified_black: True,
+            long_castle_disqualified_black: True,
+            board: Board(
+              white_king:,
+              black_king: to,
+              other_figures: dict.delete(other_figures, to),
+            ),
           )
 
         // Move another piece
@@ -1357,12 +1369,46 @@ fn do_move(
           let assert Ok(moving_figure) = dict.get(other_figures, from)
             as critical_error_text
 
-          Board(
-            white_king:,
-            black_king:,
-            other_figures: other_figures
-              |> dict.delete(from)
-              |> dict.insert(to, moving_figure),
+          let allows_en_passant = case moving_figure {
+            #(Pawn, White)
+              if from.row == Row2 && to.row == Row4 && from.file == to.file
+            -> Some(to.file)
+            #(Pawn, Black)
+              if from.row == Row7 && to.row == Row5 && from.file == to.file
+            -> Some(to.file)
+            #(_, _) -> None
+          }
+
+          let short_castle_disqualified_white =
+            game.short_castle_disqualified_white
+            || from == Coordinate(FileH, Row1)
+
+          let long_castle_disqualified_white =
+            game.long_castle_disqualified_white
+            || from == Coordinate(FileA, Row1)
+
+          let short_castle_disqualified_black =
+            game.short_castle_disqualified_black
+            || from == Coordinate(FileH, Row8)
+
+          let long_castle_disqualified_black =
+            game.long_castle_disqualified_black
+            || from == Coordinate(FileA, Row8)
+
+          OngoingGameState(
+            moving_player:,
+            en_passant_possible: allows_en_passant,
+            short_castle_disqualified_white:,
+            long_castle_disqualified_white:,
+            short_castle_disqualified_black:,
+            long_castle_disqualified_black:,
+            board: Board(
+              white_king:,
+              black_king:,
+              other_figures: other_figures
+                |> dict.delete(from)
+                |> dict.insert(to, moving_figure),
+            ),
           )
         }
       }
@@ -1371,12 +1417,16 @@ fn do_move(
       assert board_get(board, from) == Some(#(Pawn, moving_player))
         as critical_error_text
 
-      Board(
-        white_king: board.white_king,
-        black_king: board.black_king,
-        other_figures: board.other_figures
-          |> dict.delete(from)
-          |> dict.insert(to, #(new_figure, moving_player)),
+      OngoingGameState(
+        ..game,
+        en_passant_possible: None,
+        board: Board(
+          white_king: board.white_king,
+          black_king: board.black_king,
+          other_figures: board.other_figures
+            |> dict.delete(from)
+            |> dict.insert(to, #(new_figure, moving_player)),
+        ),
       )
     }
     EnPassant(from:, to:) -> {
@@ -1391,13 +1441,17 @@ fn do_move(
 
       assert board_get(board, to) == None as critical_error_text
 
-      Board(
-        white_king: board.white_king,
-        black_king: board.black_king,
-        other_figures: board.other_figures
-          |> dict.delete(from)
-          |> dict.delete(capturing_square)
-          |> dict.insert(to, #(Pawn, moving_player)),
+      OngoingGameState(
+        ..game,
+        en_passant_possible: None,
+        board: Board(
+          white_king: board.white_king,
+          black_king: board.black_king,
+          other_figures: board.other_figures
+            |> dict.delete(from)
+            |> dict.delete(capturing_square)
+            |> dict.insert(to, #(Pawn, moving_player)),
+        ),
       )
     }
     ShortCastle -> {
@@ -1419,20 +1473,32 @@ fn do_move(
 
       case moving_player {
         White ->
-          Board(
-            white_king: king_to,
-            black_king: board.black_king,
-            other_figures: board.other_figures
-              |> dict.delete(rook_from)
-              |> dict.insert(rook_to, #(Rook, moving_player)),
+          OngoingGameState(
+            ..game,
+            en_passant_possible: None,
+            short_castle_disqualified_white: True,
+            long_castle_disqualified_white: True,
+            board: Board(
+              white_king: king_to,
+              black_king: board.black_king,
+              other_figures: board.other_figures
+                |> dict.delete(rook_from)
+                |> dict.insert(rook_to, #(Rook, moving_player)),
+            ),
           )
         Black ->
-          Board(
-            white_king: board.white_king,
-            black_king: king_to,
-            other_figures: board.other_figures
-              |> dict.delete(rook_from)
-              |> dict.insert(rook_to, #(Rook, moving_player)),
+          OngoingGameState(
+            ..game,
+            en_passant_possible: None,
+            short_castle_disqualified_black: True,
+            long_castle_disqualified_black: True,
+            board: Board(
+              white_king: board.white_king,
+              black_king: king_to,
+              other_figures: board.other_figures
+                |> dict.delete(rook_from)
+                |> dict.insert(rook_to, #(Rook, moving_player)),
+            ),
           )
       }
     }
@@ -1457,26 +1523,36 @@ fn do_move(
 
       case moving_player {
         White ->
-          Board(
-            white_king: king_to,
-            black_king: board.black_king,
-            other_figures: board.other_figures
-              |> dict.delete(rook_from)
-              |> dict.insert(rook_to, #(Rook, moving_player)),
+          OngoingGameState(
+            ..game,
+            en_passant_possible: None,
+            short_castle_disqualified_white: True,
+            long_castle_disqualified_white: True,
+            board: Board(
+              white_king: king_to,
+              black_king: board.black_king,
+              other_figures: board.other_figures
+                |> dict.delete(rook_from)
+                |> dict.insert(rook_to, #(Rook, moving_player)),
+            ),
           )
         Black ->
-          Board(
-            white_king: board.white_king,
-            black_king: king_to,
-            other_figures: board.other_figures
-              |> dict.delete(rook_from)
-              |> dict.insert(rook_to, #(Rook, moving_player)),
+          OngoingGameState(
+            ..game,
+            en_passant_possible: None,
+            short_castle_disqualified_black: True,
+            long_castle_disqualified_black: True,
+            board: Board(
+              white_king: board.white_king,
+              black_king: king_to,
+              other_figures: board.other_figures
+                |> dict.delete(rook_from)
+                |> dict.insert(rook_to, #(Rook, moving_player)),
+            ),
           )
       }
     }
   }
-
-  OngoingGameState(..game, board: new_board)
 }
 
 /// Move a coordinate by a specific amount of files and rows

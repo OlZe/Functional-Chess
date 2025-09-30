@@ -70,12 +70,12 @@ pub fn main() {
 - [x] Win/Lose the game
   - [x] by checkmate
   - [x] by player forfeit
-- [x] Draw the game<sup>1</sup>
+- [ ] Draw the game<sup>1</sup>
   - [x] by mutual player agreement
   - [x] by [stalemate](https://www.chess.com/terms/draw-chess#stalemate)
   - [x] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
-  - [x] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
-  - [x] by the [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule)
+  - [ ] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
+  - [ ] by the [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule)
 
 > <sup>1</sup> The rule of achieving a [draw by a dead position](https://www.chess.com/terms/draw-chess#dead-position) is omitted as implementation is quite complex and could have significant impact on performance.
 > 
