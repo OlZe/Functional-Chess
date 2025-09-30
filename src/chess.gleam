@@ -24,7 +24,15 @@ pub opaque type GameState {
     status: GameStatus,
     /// Keeps the previous game state as well as the move that transformed the previous
     /// game state to *this* game state.
-    previous_state: Option(#(Move, GameState)),
+    previous_state: Option(#(Move, InternalGameState)),
+  )
+}
+
+type InternalGameState {
+  InternalGameState(
+    board: Board,
+    moving_player: Player,
+    previous_state: Option(#(Move, InternalGameState)),
   )
 }
 
@@ -244,13 +252,16 @@ pub fn player_move(
   game game: GameState,
   move move: Move,
 ) -> Result(GameState, PlayerMoveError) {
-  case move {
-    PlayerForfeits ->
-      forfeit(game:)
-      |> result.map_error(fn(_) { PlayerMoveWhileGameAlreadyOver })
-    PlayersAgreeToDraw ->
-      draw(game:) |> result.map_error(fn(_) { PlayerMoveWhileGameAlreadyOver })
-    PlayerMovesFigure(move) -> player_move_figure(game:, move:)
+  case game {
+    GameState(_, GameEnded(_), _) -> Error(PlayerMoveWhileGameAlreadyOver)
+    GameState(board, GameOngoing(moving_player), previous_state) -> {
+      let game = InternalGameState(board:, moving_player:, previous_state:)
+      case move {
+        PlayerForfeits -> Ok(forfeit(game:))
+        PlayersAgreeToDraw -> Ok(draw(game:))
+        PlayerMovesFigure(move) -> player_move_figure(game:, move:)
+      }
+    }
   }
 }
 
@@ -304,10 +315,12 @@ pub fn get_moves(
     GameEnded(_) -> Error(GetMovesWhileGameAlreadyOver)
     GameOngoing(moving_player) ->
       get_legal_moves_on_arbitrary_board(
-        game.board,
-        coord,
-        moving_player,
-        game.previous_state,
+        game: InternalGameState(
+          board: game.board,
+          moving_player:,
+          previous_state: game.previous_state,
+        ),
+        figure: coord,
       )
       |> result.map_error(fn(e) { GetMovesWithInvalidFigure(reason: e) })
   }
@@ -315,128 +328,105 @@ pub fn get_moves(
 
 /// Executes a FigureMove
 fn player_move_figure(
-  game game: GameState,
+  game game: InternalGameState,
   move move: FigureMove,
 ) -> Result(GameState, PlayerMoveError) {
-  case game.status {
-    GameEnded(_) -> Error(PlayerMoveWhileGameAlreadyOver)
-    GameOngoing(moving_player) -> {
-      // Check if given move is legal by getting all available moves and
-      // checking if any of them map to it
-
-      let available_moves =
-        {
-          let from = case move {
-            EnPassant(from, _) -> from
-            PawnPromotion(from, _, _) -> from
-            StandardFigureMove(from, _) -> from
-            LongCastle | ShortCastle ->
-              case moving_player {
-                White -> Coordinate(FileE, Row1)
-                Black -> Coordinate(FileE, Row8)
-              }
-          }
-
-          get_legal_moves_on_arbitrary_board(
-            game.board,
-            from,
-            moving_player:,
-            previous_state: game.previous_state,
-          )
+  {
+    // Check if given move is legal by getting the available moves
+    // from the move's from-square and checking if given move is in that set
+    let available_moves =
+      {
+        let from = case move {
+          EnPassant(from, _) -> from
+          PawnPromotion(from, _, _) -> from
+          StandardFigureMove(from, _) -> from
+          LongCastle | ShortCastle ->
+            case game.moving_player {
+              White -> Coordinate(FileE, Row1)
+              Black -> Coordinate(FileE, Row8)
+            }
         }
-        |> result.map_error(fn(e) { PlayerMoveWithInvalidFigure(reason: e) })
-      use available_moves <- result.try(available_moves)
-      let is_legal = {
-        // Map move to its corresponding AvailableFigureMove
-        let move = case move {
-          StandardFigureMove(_, to:) -> StandardFigureMoveAvailable(to:)
-          PawnPromotion(_, _, to:) -> PawnPromotionAvailable(to:)
-          EnPassant(_, to:) -> EnPassantAvailable(to:)
-          ShortCastle -> ShortCastleAvailable
-          LongCastle -> LongCastleAvailable
-        }
-        set.contains(available_moves, move)
+
+        get_legal_moves_on_arbitrary_board(game:, figure: from)
       }
-      use <- bool.guard(when: !is_legal, return: Error(PlayerMoveIsIllegal))
-
-      // Do the move
-      let new_board = board_move(game.board, move, moving_player)
-      let new_previous_state = Some(#(PlayerMovesFigure(move), game))
-
-      // Check if game ended
-      let new_status = {
-        case is_game_ended(new_board, moving_player, new_previous_state) {
-          Some(end_condition) -> GameEnded(info: end_condition)
-          None -> GameOngoing(next_player: player_flip(moving_player))
-        }
+      |> result.map_error(fn(e) { PlayerMoveWithInvalidFigure(reason: e) })
+    use available_moves <- result.try(available_moves)
+    let is_legal = {
+      // Map move to its corresponding AvailableFigureMove
+      let move = case move {
+        StandardFigureMove(_, to:) -> StandardFigureMoveAvailable(to:)
+        PawnPromotion(_, _, to:) -> PawnPromotionAvailable(to:)
+        EnPassant(_, to:) -> EnPassantAvailable(to:)
+        ShortCastle -> ShortCastleAvailable
+        LongCastle -> LongCastleAvailable
       }
-      Ok(GameState(
-        board: new_board,
-        status: new_status,
-        previous_state: new_previous_state,
-      ))
+      set.contains(available_moves, move)
     }
+    use <- bool.guard(when: !is_legal, return: Error(PlayerMoveIsIllegal))
+
+    // Do the move
+    let new_game = execute_move(game:, move:)
+    let new_previous_state = Some(#(PlayerMovesFigure(move), game))
+
+    // Check if game ended
+    let new_status = {
+      case is_game_ended(new_game) {
+        Some(end_condition) -> GameEnded(info: end_condition)
+        None -> GameOngoing(next_player: player_flip(game.moving_player))
+      }
+    }
+    Ok(GameState(
+      board: new_game.board,
+      status: new_status,
+      previous_state: new_previous_state,
+    ))
   }
 }
 
 /// Forfeit the game to the opposing player.
-/// 
-/// Errors if the game was already over.
-fn forfeit(game game: GameState) -> Result(GameState, Nil) {
-  case game.status {
-    GameEnded(_) -> Error(Nil)
-    GameOngoing(next_player: forfeiter) -> {
-      let winner = player_flip(forfeiter)
-      Ok(GameState(
-        board: game.board,
-        status: GameEnded(Victory(winner:, by: Forfeited)),
-        previous_state: Some(#(PlayerForfeits, game)),
-      ))
-    }
-  }
+fn forfeit(game game: InternalGameState) -> GameState {
+  let winner = player_flip(game.moving_player)
+  GameState(
+    board: game.board,
+    status: GameEnded(Victory(winner:, by: Forfeited)),
+    previous_state: Some(#(PlayerForfeits, game)),
+  )
 }
 
 /// Draw the game through mutual agreement of both players.
-/// 
-/// Errors if the game was already over.
-fn draw(game game: GameState) -> Result(GameState, Nil) {
-  case game.status {
-    GameEnded(_) -> Error(Nil)
-    GameOngoing(_) -> {
-      Ok(GameState(
-        board: game.board,
-        status: GameEnded(Draw(by: MutualAgreement)),
-        previous_state: Some(#(PlayersAgreeToDraw, game)),
-      ))
-    }
-  }
+fn draw(game game: InternalGameState) -> GameState {
+  GameState(
+    board: game.board,
+    status: GameEnded(Draw(by: MutualAgreement)),
+    previous_state: Some(#(PlayersAgreeToDraw, game)),
+  )
 }
 
 /// Determines wether the player is being checked by its opponent.
-fn is_in_check(
-  board board: Board,
-  player attackee: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
-) -> Bool {
+fn is_in_check(game game: InternalGameState) -> Bool {
   // Check if attackee is in check by requesting all moves of all
   // attacker pieces and seeing if any of their moves hit the king
 
-  let attackee_king = case attackee {
-    White -> board.white_king
-    Black -> board.black_king
+  let attackee_king = case game.moving_player {
+    White -> game.board.white_king
+    Black -> game.board.black_king
   }
-  let attacker = player_flip(attackee)
+  let attacker = player_flip(game.moving_player)
 
   // A king can never be checked by the opponent's king,
   // thus iterating only over board.other_figures is sufficient
-  board.other_figures
+  game.board.other_figures
   |> dict.to_list
   // Find all pieces belonging to attacker
   |> list.filter(fn(coord_and_figure) { coord_and_figure.1.1 == attacker })
   |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
   // Get all attacker moves
   |> list.flat_map(fn(coord) {
-    get_unchecked_moves(board, coord, attacker, previous_state)
+    // get_unchecked_moves(board, coord, attacker, previous_state)
+    get_unchecked_moves(
+      InternalGameState(..game, moving_player: attacker),
+      coord,
+    )
     |> result.map(set.to_list)
     |> result.unwrap([])
   })
@@ -458,13 +448,9 @@ fn is_in_check(
 }
 
 // Used to check whether the board reached an end condition
-fn is_game_ended(
-  moved_board board: Board,
-  moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
-) -> Option(EndCondition) {
+fn is_game_ended(game game: InternalGameState) -> Option(EndCondition) {
   // Check draw by insufficient material
-  let ended = case is_insufficient_material(board:) {
+  let ended = case is_insufficient_material(board: game.board) {
     True -> Some(Draw(by: InsufficientMaterial))
     False -> None
   }
@@ -473,15 +459,13 @@ fn is_game_ended(
   use <- option.lazy_or(ended)
 
   // Validate stalemate or checkmate
-  let ended = is_checkmate_or_stalemate(board:, moving_player:, previous_state:)
+  let ended = is_checkmate_or_stalemate(game:)
 
   // Early return
   use <- option.lazy_or(ended)
 
   // Check threefold repetition
-  let ended = case
-    is_threefold_repetition(moved_board: board, moving_player:, previous_state:)
-  {
+  let ended = case is_threefold_repetition(game:) {
     True -> Some(Draw(by: ThreefoldRepition))
     False -> None
   }
@@ -490,7 +474,9 @@ fn is_game_ended(
   use <- option.lazy_or(ended)
 
   // Check fifty move rule
-  let ended = case is_fifty_move_rule(board:, previous_state:) {
+  let ended = case
+    is_fifty_move_rule(board: game.board, previous_state: game.previous_state)
+  {
     True -> Some(Draw(by: FiftyMoveRule))
     False -> None
   }
@@ -527,69 +513,54 @@ fn is_insufficient_material(board board: Board) -> Bool {
 /// This function validates checkmate or stalemate together as
 /// they're tightly coupled and very similar
 fn is_checkmate_or_stalemate(
-  board board: Board,
-  moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
+  game game: InternalGameState,
 ) -> Option(EndCondition) {
-  let opponent_player = player_flip(moving_player)
+  let opponent_player = player_flip(game.moving_player)
+  let opponent_game = InternalGameState(..game, moving_player: opponent_player)
 
   let opponent_has_no_moves =
-    get_all_legal_moves_on_arbitrary_board(
-      board,
-      opponent_player,
-      previous_state,
-    )
+    get_all_legal_moves_on_arbitrary_board(game: opponent_game)
     |> set.is_empty()
 
-  let opponent_is_in_check = is_in_check(board, opponent_player, previous_state)
+  let opponent_is_in_check = is_in_check(game: opponent_game)
   case opponent_has_no_moves, opponent_is_in_check {
-    True, True -> Some(Victory(winner: moving_player, by: Checkmated))
+    True, True -> Some(Victory(winner: game.moving_player, by: Checkmated))
     True, False -> Some(Draw(by: Stalemated))
     False, _ -> None
   }
 }
 
 // Checks if this position has been reached three times by the `player`.
-fn is_threefold_repetition(
-  moved_board board: Board,
-  moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
-) -> Bool {
+fn is_threefold_repetition(game game: InternalGameState) -> Bool {
   // We flip the player as we are interested wether the
   // opponent now has reached a position with moves which occured three times
-  let player = player_flip(moving_player)
+  let player = player_flip(game.moving_player)
+  let game = InternalGameState(..game, moving_player: player)
 
   let position = {
-    let moves =
-      get_all_legal_moves_on_arbitrary_board(
-        board:,
-        moving_player: player,
-        previous_state:,
-      )
-
-    #(board, moves)
+    let moves = get_all_legal_moves_on_arbitrary_board(game:)
+    #(game.board, moves)
   }
 
   position_is_reached_three_times_loop(
+    game:,
     target_position: position,
-    player:,
-    current_position: position,
-    current_position_previous_state: previous_state,
     count: 0,
   )
 }
 
 // Checks if `target_position` has been reached three times by `player`
 fn position_is_reached_three_times_loop(
+  game game: InternalGameState,
   target_position target_position: #(Board, set.Set(AvailableFigureMove)),
-  player player: Player,
-  current_position current_position: #(Board, set.Set(AvailableFigureMove)),
-  current_position_previous_state current_position_previous_state: Option(
-    #(Move, GameState),
-  ),
   count count: Int,
 ) -> Bool {
-  let count = case current_position == target_position {
+  let position = {
+    let moves = get_all_legal_moves_on_arbitrary_board(game:)
+    #(game.board, moves)
+  }
+
+  let count = case position == target_position {
     True -> count + 1
     False -> count
   }
@@ -599,7 +570,7 @@ fn position_is_reached_three_times_loop(
 
   // We want the previous position for `player`, so we have
   // to go back two positions
-  case current_position_previous_state {
+  case game.previous_state {
     // No more previous moves => no threefold repetition
     None -> False
     // This is the opponent's previous position, go back one more
@@ -610,34 +581,19 @@ fn position_is_reached_three_times_loop(
         Some(#(_, previous_game)) -> {
           // Prepare to call function with previous_game
 
-          // This condition should always hold
-          assert previous_game.status == GameOngoing(next_player: player)
-            as critical_error_text
-
           // Optimization: If a figure has been captured (meaning: if the amount
           // of figures change), then a three-fold-repetition is impossible as the
           // amount of figures in a chess game only ever decreases.
           let is_figure_captured = {
-            let amount_now = board_get_amount_figures(current_position.0)
+            let amount_now = board_get_amount_figures(game.board)
             let amount_previous = board_get_amount_figures(previous_game.board)
             amount_now != amount_previous
           }
           use <- bool.guard(when: is_figure_captured, return: False)
 
-          let moves =
-            get_all_legal_moves_on_arbitrary_board(
-              board: previous_game.board,
-              moving_player: player,
-              previous_state: previous_game.previous_state,
-            )
-          let previous_position = #(previous_game.board, moves)
-          let previous_state_of_previous_position = previous_game.previous_state
-
           position_is_reached_three_times_loop(
+            game: previous_game,
             target_position:,
-            player: player,
-            current_position: previous_position,
-            current_position_previous_state: previous_state_of_previous_position,
             count:,
           )
         }
@@ -648,14 +604,14 @@ fn position_is_reached_three_times_loop(
 // Checks whether the fifty move rule is satisfied.
 fn is_fifty_move_rule(
   board board: Board,
-  previous_state previous_state: Option(#(Move, GameState)),
+  previous_state previous_state: Option(#(Move, InternalGameState)),
 ) -> Bool {
   is_fifty_move_rule_loop(current_board: board, previous_state:, counter: 0)
 }
 
 fn is_fifty_move_rule_loop(
   current_board board: Board,
-  previous_state previous_state: Option(#(Move, GameState)),
+  previous_state previous_state: Option(#(Move, InternalGameState)),
   counter counter: Int,
 ) -> Bool {
   use <- bool.guard(when: counter >= 100, return: True)
@@ -704,21 +660,19 @@ fn is_fifty_move_rule_loop(
 
 /// Retrieve all legal moves of all figures of `moving_player`
 fn get_all_legal_moves_on_arbitrary_board(
-  board board: Board,
-  moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
+  game game: InternalGameState,
 ) -> set.Set(AvailableFigureMove) {
-  let king = case moving_player {
-    White -> board.white_king
-    Black -> board.black_king
+  let king = case game.moving_player {
+    White -> game.board.white_king
+    Black -> game.board.black_king
   }
 
   // Get all of moving_player's figures
   let figures =
-    board.other_figures
+    game.board.other_figures
     |> dict.to_list
     |> list.filter(fn(coord_and_figure) {
-      coord_and_figure.1.1 == moving_player
+      coord_and_figure.1.1 == game.moving_player
     })
     |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
     |> list.append([king])
@@ -728,12 +682,7 @@ fn get_all_legal_moves_on_arbitrary_board(
   let all_moves =
     figures
     |> set.map(fn(from) {
-      get_legal_moves_on_arbitrary_board(
-        board:,
-        figure: from,
-        moving_player:,
-        previous_state:,
-      )
+      get_legal_moves_on_arbitrary_board(game:, figure: from)
       // result.unwrap is okay here because `from` should always be valid
       |> result.lazy_unwrap(fn() { panic as critical_error_text })
     })
@@ -746,23 +695,16 @@ fn get_all_legal_moves_on_arbitrary_board(
 /// Retrieve all legal moves of a given figure.
 /// Unlike `get_moves` this doesn't require a `Game` variable
 fn get_legal_moves_on_arbitrary_board(
-  board board: Board,
+  game game: InternalGameState,
   figure coord: Coordinate,
-  moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
-  use moves <- result.try(get_unchecked_moves(
-    board,
-    coord,
-    moving_player,
-    previous_state,
-  ))
+  use moves <- result.try(get_unchecked_moves(game:, figure: coord))
 
   // Filter moves, that leave the player in check, out
   moves
   |> set.filter(fn(move) {
     // Simulate move, then check if moving_player is in check
-    let executeable_move = case move {
+    let move = case move {
       StandardFigureMoveAvailable(to:) -> StandardFigureMove(from: coord, to:)
       EnPassantAvailable(to:) -> EnPassant(from: coord, to:)
       LongCastleAvailable -> LongCastle
@@ -772,8 +714,10 @@ fn get_legal_moves_on_arbitrary_board(
       PawnPromotionAvailable(to:) ->
         PawnPromotion(from: coord, to:, new_figure: Queen)
     }
-    let future_board = board_move(board, executeable_move, moving_player)
-    !is_in_check(future_board, moving_player, previous_state)
+    game
+    |> execute_move(move)
+    |> is_in_check()
+    |> bool.negate()
   })
   |> Ok
 }
@@ -782,35 +726,25 @@ fn get_legal_moves_on_arbitrary_board(
 /// 
 /// Doesn't consider if moving_player's king is in check.
 fn get_unchecked_moves(
-  board board: Board,
+  game game: InternalGameState,
   figure coord: Coordinate,
-  moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
   let selected_figure =
-    board_get(board, coord)
+    board_get(game.board, coord)
     |> option.to_result(SelectedFigureDoesntExist)
   use #(selected_figure, selected_figure_owner) <- result.try(selected_figure)
   use <- bool.guard(
-    when: selected_figure_owner != moving_player,
+    when: selected_figure_owner != game.moving_player,
     return: Error(SelectedFigureIsNotFriendly),
   )
 
   let moves = case selected_figure {
-    Pawn ->
-      get_moves_for_pawn(
-        board,
-        coord,
-        moving_player,
-        previous_move: option.map(previous_state, fn(previous_state) {
-          previous_state.0
-        }),
-      )
-    Bishop -> get_moves_for_bishop(board, coord, moving_player)
-    King -> get_moves_for_king(board, coord, moving_player, previous_state)
-    Knight -> get_moves_for_knight(board, coord, moving_player)
-    Queen -> get_moves_for_queen(board, coord, moving_player)
-    Rook -> get_moves_for_rook(board, coord, moving_player)
+    Pawn -> get_moves_for_pawn(game:, coord:)
+    Bishop -> get_moves_for_bishop(game.board, coord, game.moving_player)
+    King -> get_moves_for_king(game, coord)
+    Knight -> get_moves_for_knight(game.board, coord, game.moving_player)
+    Queen -> get_moves_for_queen(game.board, coord, game.moving_player)
+    Rook -> get_moves_for_rook(game.board, coord, game.moving_player)
   }
 
   Ok(moves)
@@ -820,12 +754,10 @@ fn get_unchecked_moves(
 /// 
 /// Doesn't consider if player's king is in check.
 fn get_moves_for_pawn(
-  board board: Board,
+  game game: InternalGameState,
   coord coord: Coordinate,
-  moving_player attacker: Player,
-  previous_move previous_move: Option(Move),
 ) -> set.Set(AvailableFigureMove) {
-  let up_direction = case attacker {
+  let up_direction = case game.moving_player {
     White -> 1
     Black -> -1
   }
@@ -833,7 +765,7 @@ fn get_moves_for_pawn(
   // Check move up
   let up = {
     use up <- option.then(coord_move(coord, 0, up_direction))
-    case board_get(board, up) {
+    case board_get(game.board, up) {
       // Square empty, allow
       None -> Some(up)
       // Square blocked, disallow
@@ -845,14 +777,14 @@ fn get_moves_for_pawn(
   let up_up = {
     // If up is disallowed, then disallow up_up
     use up <- option.then(up)
-    let to_row = case attacker {
+    let to_row = case game.moving_player {
       White -> Row4
       Black -> Row5
     }
     use up_up <- option.then(coord_move(up, 0, up_direction))
     // if 'up-up' doesn't go to 'to_row' then the pawn has moved and is disqualified
     use <- bool.guard(when: up_up.row != to_row, return: None)
-    case board_get(board, up_up) {
+    case board_get(game.board, up_up) {
       // Square empty, allow
       None -> Some(up_up)
       // Square blocked, disallow
@@ -863,11 +795,11 @@ fn get_moves_for_pawn(
   // Check capture up-left
   let up_left = {
     use up_left <- option.then(coord_move(coord, -1, up_direction))
-    case board_get(board, up_left) {
+    case board_get(game.board, up_left) {
       // Square empty, disallow
       None -> None
       Some(#(_, other_figure_owner)) ->
-        case other_figure_owner == attacker {
+        case other_figure_owner == game.moving_player {
           // Square blocked by friendly piece, disallow
           True -> None
           // Square blocked by opposing piece, allow
@@ -879,11 +811,11 @@ fn get_moves_for_pawn(
   // Check capture up-right
   let up_right = {
     use up_right <- option.then(coord_move(coord, 1, up_direction))
-    case board_get(board, up_right) {
+    case board_get(game.board, up_right) {
       // Square empty, disallow
       None -> None
       Some(#(_, other_figure_owner)) ->
-        case other_figure_owner == attacker {
+        case other_figure_owner == game.moving_player {
           // Square blocked by friendly piece, disallow
           True -> None
           // Square blocked by opposing piece, allow
@@ -897,7 +829,7 @@ fn get_moves_for_pawn(
     [up, up_up, up_left, up_right]
     |> option.values
     |> list.map(fn(to) {
-      let promotion_row = case attacker {
+      let promotion_row = case game.moving_player {
         White -> Row8
         Black -> Row1
       }
@@ -914,24 +846,12 @@ fn get_moves_for_pawn(
   // Check for En Passant
   let en_passant_left = {
     use to_file <- option.then(file_move(coord.file, -1))
-    can_en_passant(
-      board:,
-      coord:,
-      to_file:,
-      moving_player: attacker,
-      previous_move:,
-    )
+    can_en_passant(game:, coord:, to_file:)
   }
 
   let en_passant_right = {
     use to_file <- option.then(file_move(coord.file, 1))
-    can_en_passant(
-      board:,
-      coord:,
-      to_file:,
-      moving_player: attacker,
-      previous_move:,
-    )
+    can_en_passant(game:, coord:, to_file:)
   }
 
   let all_moves =
@@ -944,15 +864,13 @@ fn get_moves_for_pawn(
 }
 
 fn can_en_passant(
-  board board: Board,
+  game game: InternalGameState,
   coord coord: Coordinate,
   to_file to_file: File,
-  moving_player attacker: Player,
-  previous_move previous_move: Option(Move),
 ) -> Option(AvailableFigureMove) {
-  case previous_move {
+  case game.previous_state {
     None -> None
-    Some(previous_move) -> {
+    Some(#(previous_move, _)) -> {
       // Opponent has to have moved his pawn acoording to required_previous_move
       // and attacker's pawn has to be at required_attacker_coord
       let #(
@@ -960,7 +878,7 @@ fn can_en_passant(
         required_previous_move_to,
         en_passant_from,
         en_passant_to,
-      ) = case attacker {
+      ) = case game.moving_player {
         White -> #(
           Coordinate(to_file, Row7),
           Coordinate(to_file, Row5),
@@ -989,7 +907,7 @@ fn can_en_passant(
       )
 
       let previous_move_was_pawn = case
-        board_get(board, required_previous_move_to)
+        board_get(game.board, required_previous_move_to)
       {
         Some(#(Pawn, _)) -> True
         _ -> False
@@ -1007,10 +925,8 @@ fn can_en_passant(
 /// 
 /// Doesn't consider if player's king is in check.
 fn get_moves_for_king(
-  board board: Board,
+  game game: InternalGameState,
   coord coord: Coordinate,
-  moving_player attacker: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
 ) -> set.Set(AvailableFigureMove) {
   let standard_moves =
     [
@@ -1024,18 +940,18 @@ fn get_moves_for_king(
       #(-1, 1),
     ]
     |> set.from_list()
-    |> set.map(JumpTo(origin: coord, offset: _, attacker:))
-    |> set.map(evaluate_figure_move_description(board, _))
+    |> set.map(JumpTo(origin: coord, offset: _, attacker: game.moving_player))
+    |> set.map(evaluate_figure_move_description(game.board, _))
     // Flatten
     |> set.fold(set.new(), set.union)
     |> set.map(fn(to) { StandardFigureMoveAvailable(to) })
 
-  let short_castle = case can_short_castle(board, attacker, previous_state) {
+  let short_castle = case can_short_castle(game) {
     True -> Some(ShortCastleAvailable)
     False -> None
   }
 
-  let long_castle = case can_long_castle(board, attacker, previous_state) {
+  let long_castle = case can_long_castle(game) {
     True -> Some(LongCastleAvailable)
     False -> None
   }
@@ -1054,11 +970,11 @@ fn get_moves_for_king(
 /// Also traverses entire state history to see if king or rook have ever been moved.
 /// 
 /// First bool is for short castle, second bool for long castle.
-fn can_short_castle(
-  board board: Board,
-  moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
-) -> Bool {
+fn can_short_castle(game game: InternalGameState) -> Bool {
+  let board = game.board
+  let moving_player = game.moving_player
+  let previous_state = game.previous_state
+
   let row = case moving_player {
     White -> Row1
     Black -> Row8
@@ -1093,8 +1009,8 @@ fn can_short_castle(
   let goes_through_check = {
     [king_from, rook_to, king_to]
     |> list.map(StandardFigureMove(king_from, _))
-    |> list.map(board_move(board, _, moving_player))
-    |> list.any(is_in_check(_, moving_player, previous_state))
+    |> list.map(execute_move(game, _))
+    |> list.any(is_in_check)
   }
 
   use <- bool.guard(when: goes_through_check, return: False)
@@ -1103,11 +1019,11 @@ fn can_short_castle(
   king_and_rook_have_never_moved(king_from, rook_from, previous_state)
 }
 
-fn can_long_castle(
-  board board: Board,
-  moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, GameState)),
-) -> Bool {
+fn can_long_castle(game game: InternalGameState) -> Bool {
+  let board = game.board
+  let moving_player = game.moving_player
+  let previous_state = game.previous_state
+
   let row = case moving_player {
     White -> Row1
     Black -> Row8
@@ -1145,8 +1061,8 @@ fn can_long_castle(
   let goes_through_check = {
     [king_from, rook_to, king_to]
     |> list.map(StandardFigureMove(king_from, _))
-    |> list.map(board_move(board, _, moving_player))
-    |> list.any(is_in_check(_, moving_player, previous_state))
+    |> list.map(execute_move(game, _))
+    |> list.any(is_in_check)
   }
 
   use <- bool.guard(when: goes_through_check, return: False)
@@ -1158,7 +1074,7 @@ fn can_long_castle(
 fn king_and_rook_have_never_moved(
   king_start_coord king: Coordinate,
   rook_start_coord rook: Coordinate,
-  previous_state previous_state: Option(#(Move, GameState)),
+  previous_state previous_state: Option(#(Move, InternalGameState)),
 ) -> Bool {
   // Recursively traverse entire state history and check for every
   // state, that king and rook are in their right positions.
@@ -1403,17 +1319,19 @@ fn board_get_amount_figures(board board: Board) -> Int {
   dict.size(board.other_figures) + 2
 }
 
-/// Execute a move on the `board`.
+/// Execute a `FigureMove`.
 /// 
 /// Peforms no checking wether the provided move is legal. Overrides other figures at the move's destination.
 /// 
 /// WARNING: Panics if the move is invalid (moving from an empty square, promoting from a non-pawn, ...)
-fn board_move(
-  board board: Board,
+fn execute_move(
+  game game: InternalGameState,
   move move: FigureMove,
-  moving_player moving_player: Player,
-) -> Board {
-  case move {
+) -> InternalGameState {
+  let board = game.board
+  let moving_player = game.moving_player
+
+  let new_board = case move {
     StandardFigureMove(from:, to:) -> {
       case board {
         // Move white king
@@ -1555,6 +1473,8 @@ fn board_move(
       }
     }
   }
+
+  InternalGameState(..game, board: new_board)
 }
 
 /// Move a coordinate by a specific amount of files and rows
