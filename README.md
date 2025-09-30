@@ -3,7 +3,7 @@
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://olze.github.io/Functional-Chess/chess.html)
 [![GitHub](https://img.shields.io/badge/GitHub-source-blue)](https://github.com/OlZe/Functional-Chess)
 
-> ⚠️🛠️ This project is a work in progress! As of now there are no releases of any kind. See the todo list below.
+> ⚠️🛠️ This project is a work in progress! While the features are complete, this project is still undergoing refactoring and documentation efforts.
 
 This is the game of chess implemented as a [Gleam](https://gleam.run/) library using a purely functional programming paradigm.
 
@@ -54,9 +54,7 @@ pub fn main() {
 ```
 
 
-## Features / Todos
-
-> 🛠️ Features marked incomplete are still being worked on.
+## Features
 
 - [x] Descriptive Error returns
 - [x] Rigorous Testing
