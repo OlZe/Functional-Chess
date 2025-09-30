@@ -72,8 +72,6 @@ pub type DrawCondition {
   /// Both players reached a position where checkmating the enemy king is impossible. See [here](https://www.chess.com/terms/draw-chess#dead-position) here for more info.
   DeadPosition
 
-  /// TODO: Not implemented
-  /// 
   /// The same position has been reached three times. See [here](https://www.chess.com/terms/draw-chess#threefold-repetition) for more info.
   ThreefoldRepition
 }
@@ -339,18 +337,19 @@ fn player_move_figure(
 
       // Do the move
       let new_board = board_move(game.board, move, moving_player)
+      let new_previous_state = Some(#(PlayerMovesFigure(move), game))
 
       // Check if game ended
       let new_status = {
-        case is_game_ended(new_board, moving_player, game.previous_state) {
-          None -> GameOngoing(next_player: player_flip(moving_player))
+        case is_game_ended(new_board, moving_player, new_previous_state) {
           Some(end_condition) -> GameEnded(info: end_condition)
+          None -> GameOngoing(next_player: player_flip(moving_player))
         }
       }
       Ok(Game(
         board: new_board,
         status: new_status,
-        previous_state: Some(#(PlayerMovesFigure(move), game)),
+        previous_state: new_previous_state,
       ))
     }
   }
@@ -434,38 +433,40 @@ fn is_in_check(
   |> list.any(fn(to) { to == attackee_king })
 }
 
+// Used to check whether the board reached an end condition
 fn is_game_ended(
-  board board: Board,
+  moved_board board: Board,
   moving_player moving_player: Player,
   previous_state previous_state: Option(#(Move, Game)),
 ) -> Option(EndCondition) {
-  let opponent_player = player_flip(moving_player)
-
   // Check draw by insufficient material
-  use <- bool.guard(
-    when: is_insufficient_material(board:),
-    return: Some(Draw(by: InsufficientMaterial)),
-  )
-
-  // Validate stalemate + checkmate together as they are tightly coupled
-  let check_or_stalemate = {
-    let opponent_has_no_moves =
-      get_all_legal_moves_on_arbitrary_board(
-        board,
-        opponent_player,
-        previous_state,
-      )
-      |> set.is_empty()
-
-    let opponent_is_in_check =
-      is_in_check(board, opponent_player, previous_state)
-    case opponent_has_no_moves, opponent_is_in_check {
-      True, True -> Some(Victory(winner: moving_player, by: Checkmated))
-      True, False -> Some(Draw(by: Stalemated))
-      False, _ -> None
-    }
+  let ended = case is_insufficient_material(board:) {
+    True -> Some(Draw(by: InsufficientMaterial))
+    False -> None
   }
-  check_or_stalemate
+
+  // Early return
+  use <- option.lazy_or(ended)
+
+  // Validate stalemate or checkmate
+  let ended = is_checkmate_or_stalemate(board:, moving_player:, previous_state:)
+
+  // Early return
+  use <- option.lazy_or(ended)
+
+  // Check threefold repetition
+  let ended = case
+    is_threefold_repetition(moved_board: board, moving_player:, previous_state:)
+  {
+    True -> Some(Draw(by: ThreefoldRepition))
+    False -> None
+  }
+
+  // Early return
+  use <- option.lazy_or(ended)
+
+  // No end condition has been found
+  None
 }
 
 /// Checks wether the `board` is a draw through insufficient material
@@ -487,6 +488,124 @@ fn is_insufficient_material(board board: Board) -> Bool {
 
     // No insufficient material
     _ -> False
+  }
+}
+
+/// This function validates checkmate or stalemate together as
+/// they're tightly coupled and very similar
+fn is_checkmate_or_stalemate(
+  board board: Board,
+  moving_player moving_player: Player,
+  previous_state previous_state: Option(#(Move, Game)),
+) -> Option(EndCondition) {
+  let opponent_player = player_flip(moving_player)
+
+  let opponent_has_no_moves =
+    get_all_legal_moves_on_arbitrary_board(
+      board,
+      opponent_player,
+      previous_state,
+    )
+    |> set.is_empty()
+
+  let opponent_is_in_check = is_in_check(board, opponent_player, previous_state)
+  case opponent_has_no_moves, opponent_is_in_check {
+    True, True -> Some(Victory(winner: moving_player, by: Checkmated))
+    True, False -> Some(Draw(by: Stalemated))
+    False, _ -> None
+  }
+}
+
+// Checks if this position has been reached three times by the `moving_player`.
+fn is_threefold_repetition(
+  moved_board board: Board,
+  moving_player moving_player: Player,
+  previous_state previous_state: Option(#(Move, Game)),
+) -> Bool {
+  // We flip the player as we are interested wether the
+  // opponent now has reached a position with moves which occured three times
+  let player = player_flip(moving_player)
+
+  let position = {
+    let moves =
+      get_all_legal_moves_on_arbitrary_board(
+        board:,
+        moving_player: player,
+        previous_state:,
+      )
+
+    #(board, moves)
+  }
+
+  position_is_reached_three_times_loop(
+    target_position: position,
+    player:,
+    current_position: position,
+    current_position_previous_state: previous_state,
+    count: 0,
+  )
+}
+
+// Checks if `target_position` has been reached three times by `player`
+fn position_is_reached_three_times_loop(
+  target_position target_position: #(Board, set.Set(AvailableFigureMove)),
+  player player: Player,
+  current_position current_position: #(Board, set.Set(AvailableFigureMove)),
+  current_position_previous_state current_position_previous_state: Option(
+    #(Move, Game),
+  ),
+  count count: Int,
+) -> Bool {
+  let count = case current_position == target_position {
+    True -> count + 1
+    False -> count
+  }
+
+  // Early return, if threefold position was found
+  use <- bool.guard(when: count >= 3, return: True)
+
+  // We want the previous position for `player`, so we have
+  // to go back two positions
+  let previous_position_and_history = {
+    case current_position_previous_state {
+      None -> None
+      // This is the opponent's previous position, go back one more
+      Some(#(_, opp_previous_position)) ->
+        case opp_previous_position.previous_state {
+          // `player` has no previous position
+          None -> None
+          Some(#(_, previous_game)) -> {
+            // This condition should always hold
+            assert previous_game.status == GameOngoing(next_player: player)
+              as critical_error_text
+
+            let moves =
+              get_all_legal_moves_on_arbitrary_board(
+                board: previous_game.board,
+                moving_player: player,
+                previous_state: previous_game.previous_state,
+              )
+            let previous_position = #(previous_game.board, moves)
+            let previous_state_of_previous_position =
+              previous_game.previous_state
+            Some(#(previous_position, previous_state_of_previous_position))
+          }
+        }
+    }
+  }
+
+  case previous_position_and_history {
+    // No previous position => no threefold repetition
+    None -> False
+    // Keep looking
+    Some(#(previous_position, previous_state_of_previous_position)) ->
+      position_is_reached_three_times_loop(
+        target_position:,
+        player: player,
+        current_position: previous_position,
+        current_position_previous_state: previous_state_of_previous_position,
+        count:,
+      )
   }
 }
 

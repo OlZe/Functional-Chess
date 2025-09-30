@@ -76,9 +76,9 @@ pub fn main() {
   - [x] by mutual player agreement
   - [x] by [stalemate](https://www.chess.com/terms/draw-chess#stalemate)
   - [x] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
-  - [ ] by a [dead position](https://www.chess.com/terms/draw-chess#dead-position)
-  - [ ] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
+  - [x] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
   - [ ] by the [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule)
+  - [ ] by a [dead position](https://www.chess.com/terms/draw-chess#dead-position)
 
 
 

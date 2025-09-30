@@ -3,6 +3,7 @@ import chess.{Bishop, Black, Knight, Pawn, Queen, Rook, White} as c
 import chess/coordinates as coord
 import chess/text_renderer as r
 import gleam/dict
+import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import gleeunit
@@ -1244,6 +1245,173 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
   combine_renders(r.render(before), r.render(after))
   |> birdie.snap(
     title: "Move E1 to E2 does not result in draw: bishops are on different colours.",
+  )
+}
+
+pub fn threefold_repetition_test() {
+  let start = {
+    let board =
+      c.Board(
+        white_king: coord.e1,
+        black_king: coord.e8,
+        other_figures: dict.from_list([
+          #(coord.e6, #(Pawn, Black)),
+        ]),
+      )
+    c.Game(board, c.GameOngoing(White), None)
+  }
+
+  let assert Ok(after_move11) =
+    c.player_move(
+      start,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.f1)),
+    )
+
+  let assert Ok(after_move12) =
+    c.player_move(
+      after_move11,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e8, coord.f8)),
+    )
+
+  let assert Ok(after_move21) =
+    c.player_move(
+      after_move12,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.f1, coord.e1)),
+    )
+
+  let assert Ok(after_move22) =
+    c.player_move(
+      after_move21,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.f8, coord.e8)),
+    )
+
+  let assert Ok(after_move31) =
+    c.player_move(
+      after_move22,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.f1)),
+    )
+
+  let assert Ok(after_move32) =
+    c.player_move(
+      after_move31,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e8, coord.f8)),
+    )
+
+  let assert Ok(after_move41) =
+    c.player_move(
+      after_move32,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.f1, coord.e1)),
+    )
+
+  let assert Ok(after_move42) =
+    c.player_move(
+      after_move41,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.f8, coord.e8)),
+    )
+
+  [
+    start,
+    after_move11,
+    after_move12,
+    after_move21,
+    after_move22,
+    after_move31,
+    after_move32,
+    after_move41,
+    after_move42,
+  ]
+  |> list.map(r.render)
+  |> combine_n_renders
+  |> birdie.snap(
+    title: "Threefold repetition gets recognized and results in a draw.",
+  )
+}
+
+pub fn threefold_repetition_ignores_positions_with_special_moves_test() {
+  let start = {
+    let board =
+      c.Board(
+        white_king: coord.e1,
+        black_king: coord.e8,
+        other_figures: dict.from_list([
+          #(coord.f5, #(Pawn, White)),
+          #(coord.e7, #(Pawn, Black)),
+        ]),
+      )
+    c.Game(board, c.GameOngoing(Black), None)
+  }
+
+  // Make En Passant available
+  let assert Ok(after_move02) =
+    c.player_move(
+      start,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e7, coord.e5)),
+    )
+
+  let assert Ok(after_move11) =
+    c.player_move(
+      after_move02,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.f1)),
+    )
+
+  let assert Ok(after_move12) =
+    c.player_move(
+      after_move11,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e8, coord.f8)),
+    )
+
+  let assert Ok(after_move21) =
+    c.player_move(
+      after_move12,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.f1, coord.e1)),
+    )
+
+  let assert Ok(after_move22) =
+    c.player_move(
+      after_move21,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.f8, coord.e8)),
+    )
+
+  let assert Ok(after_move31) =
+    c.player_move(
+      after_move22,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.f1)),
+    )
+
+  let assert Ok(after_move32) =
+    c.player_move(
+      after_move31,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e8, coord.f8)),
+    )
+
+  let assert Ok(after_move41) =
+    c.player_move(
+      after_move32,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.f1, coord.e1)),
+    )
+
+  let assert Ok(after_move42) =
+    c.player_move(
+      after_move41,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.f8, coord.e8)),
+    )
+
+  [
+    start,
+    after_move02,
+    after_move11,
+    after_move12,
+    after_move21,
+    after_move22,
+    after_move31,
+    after_move32,
+    after_move41,
+    after_move42,
+  ]
+  |> list.map(r.render)
+  |> combine_n_renders
+  |> birdie.snap(
+    title: "This does not result in a threefold repetition as en passant becomes available at the second position",
   )
 }
 
