@@ -516,7 +516,7 @@ fn is_checkmate_or_stalemate(
   }
 }
 
-// Checks if this position has been reached three times by the `moving_player`.
+// Checks if this position has been reached three times by the `player`.
 fn is_threefold_repetition(
   moved_board board: Board,
   moving_player moving_player: Player,
@@ -566,46 +566,49 @@ fn position_is_reached_three_times_loop(
 
   // We want the previous position for `player`, so we have
   // to go back two positions
-  let previous_position_and_history = {
-    case current_position_previous_state {
-      None -> None
-      // This is the opponent's previous position, go back one more
-      Some(#(_, opp_previous_position)) ->
-        case opp_previous_position.previous_state {
-          // `player` has no previous position
-          None -> None
-          Some(#(_, previous_game)) -> {
-            // This condition should always hold
-            assert previous_game.status == GameOngoing(next_player: player)
-              as critical_error_text
-
-            let moves =
-              get_all_legal_moves_on_arbitrary_board(
-                board: previous_game.board,
-                moving_player: player,
-                previous_state: previous_game.previous_state,
-              )
-            let previous_position = #(previous_game.board, moves)
-            let previous_state_of_previous_position =
-              previous_game.previous_state
-            Some(#(previous_position, previous_state_of_previous_position))
-          }
-        }
-    }
-  }
-
-  case previous_position_and_history {
-    // No previous position => no threefold repetition
+  case current_position_previous_state {
+    // No more previous moves => no threefold repetition
     None -> False
-    // Keep looking
-    Some(#(previous_position, previous_state_of_previous_position)) ->
-      position_is_reached_three_times_loop(
-        target_position:,
-        player: player,
-        current_position: previous_position,
-        current_position_previous_state: previous_state_of_previous_position,
-        count:,
-      )
+    // This is the opponent's previous position, go back one more
+    Some(#(_, opp_previous_position)) ->
+      case opp_previous_position.previous_state {
+        // `player` has no previous position
+        None -> False
+        Some(#(_, previous_game)) -> {
+          // Prepare to call function with previous_game
+
+          // This condition should always hold
+          assert previous_game.status == GameOngoing(next_player: player)
+            as critical_error_text
+
+          // Optimization: If a figure has been captured (meaning: if the amount
+          // of figures change), then a three-fold-repetition is impossible as the
+          // amount of figures in a chess game only ever decreases.
+          let is_figure_captured = {
+            let amount_now = board_get_amount_figures(current_position.0)
+            let amount_previous = board_get_amount_figures(previous_game.board)
+            amount_now != amount_previous
+          }
+          use <- bool.guard(when: is_figure_captured, return: False)
+
+          let moves =
+            get_all_legal_moves_on_arbitrary_board(
+              board: previous_game.board,
+              moving_player: player,
+              previous_state: previous_game.previous_state,
+            )
+          let previous_position = #(previous_game.board, moves)
+          let previous_state_of_previous_position = previous_game.previous_state
+
+          position_is_reached_three_times_loop(
+            target_position:,
+            player: player,
+            current_position: previous_position,
+            current_position_previous_state: previous_state_of_previous_position,
+            count:,
+          )
+        }
+      }
   }
 }
 
@@ -1301,6 +1304,13 @@ fn board_get(
     Board(_, _, other_figures) ->
       other_figures |> dict.get(coord) |> option.from_result()
   }
+}
+
+/// Returns how many figures on the board are in play.
+/// 
+/// Includes both kings.
+fn board_get_amount_figures(board board: Board) -> Int {
+  dict.size(board.other_figures) + 2
 }
 
 /// Execute a move on the `board`.
