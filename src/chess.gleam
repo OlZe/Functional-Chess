@@ -67,11 +67,6 @@ pub type DrawCondition {
   /// Both players are missing enough figures to checkmate the enemy king. See [here](https://www.chess.com/terms/draw-chess#dead-position) for more info.
   InsufficientMaterial
 
-  /// TODO: Not implemented
-  /// 
-  /// Both players reached a position where checkmating the enemy king is impossible. See [here](https://www.chess.com/terms/draw-chess#dead-position) here for more info.
-  DeadPosition
-
   /// The same position has been reached three times. See [here](https://www.chess.com/terms/draw-chess#threefold-repetition) for more info.
   ThreefoldRepition
 }

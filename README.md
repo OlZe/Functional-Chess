@@ -72,14 +72,18 @@ pub fn main() {
 - [x] Win/Lose the game
   - [x] by checkmate
   - [x] by player forfeit
-- [ ] Draw the game
+- [ ] Draw the game<sup>1</sup>
   - [x] by mutual player agreement
   - [x] by [stalemate](https://www.chess.com/terms/draw-chess#stalemate)
   - [x] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
   - [x] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
   - [ ] by the [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule)
-  - [ ] by a [dead position](https://www.chess.com/terms/draw-chess#dead-position)
 
+> <sup>1</sup> The rule of achieving a [draw by a dead position](https://www.chess.com/terms/draw-chess#dead-position) is omitted as implementation is quite complex and could have significant impact on performance.
+> 
+> This should however not impact the actual user experience of playing chess much, as being in a dead position eventually results in a draw through either mutual agreement, threefold repetition or the 50 move rule anyway.
+>
+> Let me know if you know a nifty algorithm for this!
 
 
 ## Development

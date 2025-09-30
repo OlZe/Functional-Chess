@@ -236,7 +236,6 @@ fn render_status(status status: c.GameStatus) -> String {
     c.GameEnded(c.Draw(by: c.MutualAgreement)) -> "     Mutual Draw"
     c.GameEnded(c.Draw(by: c.Stalemated)) -> "      Stalemate"
     c.GameEnded(c.Draw(by: c.InsufficientMaterial)) -> "InsufficientMaterial"
-    c.GameEnded(c.Draw(by: c.DeadPosition)) -> "    Dead Position"
     c.GameEnded(c.Draw(by: c.ThreefoldRepition)) -> " Threefold Repetition"
   }
 }
