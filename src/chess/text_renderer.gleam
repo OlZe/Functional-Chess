@@ -45,10 +45,12 @@ import gleam_community/ansi
 /// 
 /// Do not use this if you don't want ANSI codes in the output string.
 pub fn render_with_moves(
-  game game: c.Game,
+  game game: c.GameState,
   selected_figure selected_figure: c.Coordinate,
   moves moves: set.Set(c.AvailableFigureMove),
 ) -> String {
+  let board = c.get_board(game)
+
   let render_square_with_moves_fn = fn(board: c.Board, coord: c.Coordinate) -> String {
     let square = render_square_plain(board:, coord:)
 
@@ -77,7 +79,7 @@ pub fn render_with_moves(
 
       // Short castle is in the move list.
       // Find owner of king to determine standard castling highlight square.
-      case board_get(game.board, selected_figure) {
+      case board_get(board, selected_figure) {
         Some(#(c.King, owner)) -> {
           let highlight_square = case owner {
             c.White -> coordinates.g1
@@ -97,7 +99,7 @@ pub fn render_with_moves(
 
       // Long castle is in the move list.
       // Find owner of king to determine standard castling highlight square.
-      case board_get(game.board, selected_figure) {
+      case board_get(board, selected_figure) {
         Some(#(c.King, owner)) -> {
           let highlight_square = case owner {
             c.White -> coordinates.c1
@@ -136,8 +138,8 @@ pub fn render_with_moves(
     square
   }
 
-  let status = render_status(game.status)
-  let board = render_board(game.board, render_square_with_moves_fn)
+  let status = render_status(c.get_status(game))
+  let board = render_board(board, render_square_with_moves_fn)
 
   status <> "\n" <> board
 }
@@ -145,9 +147,9 @@ pub fn render_with_moves(
 /// Renders the `game` into a String without using any ANSI codes.
 /// 
 /// See `render_with_moves` if you want to highlight available moves as well.
-pub fn render(game game: c.Game) -> String {
-  let status = render_status(game.status)
-  let board = render_board(game.board, render_square_plain)
+pub fn render(game game: c.GameState) -> String {
+  let status = render_status(c.get_status(game))
+  let board = render_board(c.get_board(game), render_square_plain)
 
   status <> "\n" <> board
 }

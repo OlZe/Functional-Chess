@@ -18,13 +18,13 @@ import gleam/set
 /// Use [`new_game`](#new_game) to generate.
 /// 
 /// Update with [`player_move`](#player_move).
-pub type Game {
-  Game(
+pub opaque type GameState {
+  GameState(
     board: Board,
     status: GameStatus,
     /// Keeps the previous game state as well as the move that transformed the previous
     /// game state to *this* game state.
-    previous_state: Option(#(Move, Game)),
+    previous_state: Option(#(Move, GameState)),
   )
 }
 
@@ -189,9 +189,35 @@ pub type SelectFigureError {
   SelectedFigureIsNotFriendly
 }
 
+/// Return a `Board` from a `GameState`.
+pub fn get_board(game game: GameState) -> Board {
+  game.board
+}
+
+/// Return a `GameStatus` from a `GameState`.
+pub fn get_status(game game: GameState) -> GameStatus {
+  game.status
+}
+
 /// Creates a new game in the standard starting chess position.
-pub fn new_game() -> Game {
-  Game(board: board_new(), status: GameOngoing(White), previous_state: None)
+pub fn new_game() -> GameState {
+  GameState(
+    board: board_new(),
+    status: GameOngoing(White),
+    previous_state: None,
+  )
+}
+
+/// Create a new game in the given position.
+/// 
+/// `first_player` decides which player goes first.
+/// 
+/// TODO: Add evaluation to see if the given position is legal.
+pub fn new_custom_game(
+  board board: Board,
+  first_player player: Player,
+) -> GameState {
+  GameState(board: board, status: GameOngoing(player), previous_state: None)
 }
 
 /// Represents an error returned by [`player_move`](#player_move).
@@ -215,9 +241,9 @@ pub type PlayerMoveError {
 /// 
 /// Errors if the provided move is not valid/legal or the game was already over.
 pub fn player_move(
-  game game: Game,
+  game game: GameState,
   move move: Move,
-) -> Result(Game, PlayerMoveError) {
+) -> Result(GameState, PlayerMoveError) {
   case move {
     PlayerForfeits ->
       forfeit(game:)
@@ -271,7 +297,7 @@ pub type AvailableFigureMove {
 /// 
 /// Errors if the game was already over or the selected `figure` doesn't exist or isn't owned by the player.
 pub fn get_moves(
-  game game: Game,
+  game game: GameState,
   figure coord: Coordinate,
 ) -> Result(set.Set(AvailableFigureMove), GetMovesError) {
   case game.status {
@@ -289,9 +315,9 @@ pub fn get_moves(
 
 /// Executes a FigureMove
 fn player_move_figure(
-  game game: Game,
+  game game: GameState,
   move move: FigureMove,
-) -> Result(Game, PlayerMoveError) {
+) -> Result(GameState, PlayerMoveError) {
   case game.status {
     GameEnded(_) -> Error(PlayerMoveWhileGameAlreadyOver)
     GameOngoing(moving_player) -> {
@@ -344,7 +370,7 @@ fn player_move_figure(
           None -> GameOngoing(next_player: player_flip(moving_player))
         }
       }
-      Ok(Game(
+      Ok(GameState(
         board: new_board,
         status: new_status,
         previous_state: new_previous_state,
@@ -356,12 +382,12 @@ fn player_move_figure(
 /// Forfeit the game to the opposing player.
 /// 
 /// Errors if the game was already over.
-fn forfeit(game game: Game) -> Result(Game, Nil) {
+fn forfeit(game game: GameState) -> Result(GameState, Nil) {
   case game.status {
     GameEnded(_) -> Error(Nil)
     GameOngoing(next_player: forfeiter) -> {
       let winner = player_flip(forfeiter)
-      Ok(Game(
+      Ok(GameState(
         board: game.board,
         status: GameEnded(Victory(winner:, by: Forfeited)),
         previous_state: Some(#(PlayerForfeits, game)),
@@ -373,11 +399,11 @@ fn forfeit(game game: Game) -> Result(Game, Nil) {
 /// Draw the game through mutual agreement of both players.
 /// 
 /// Errors if the game was already over.
-fn draw(game game: Game) -> Result(Game, Nil) {
+fn draw(game game: GameState) -> Result(GameState, Nil) {
   case game.status {
     GameEnded(_) -> Error(Nil)
     GameOngoing(_) -> {
-      Ok(Game(
+      Ok(GameState(
         board: game.board,
         status: GameEnded(Draw(by: MutualAgreement)),
         previous_state: Some(#(PlayersAgreeToDraw, game)),
@@ -390,7 +416,7 @@ fn draw(game game: Game) -> Result(Game, Nil) {
 fn is_in_check(
   board board: Board,
   player attackee: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Bool {
   // Check if attackee is in check by requesting all moves of all
   // attacker pieces and seeing if any of their moves hit the king
@@ -435,7 +461,7 @@ fn is_in_check(
 fn is_game_ended(
   moved_board board: Board,
   moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Option(EndCondition) {
   // Check draw by insufficient material
   let ended = case is_insufficient_material(board:) {
@@ -503,7 +529,7 @@ fn is_insufficient_material(board board: Board) -> Bool {
 fn is_checkmate_or_stalemate(
   board board: Board,
   moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Option(EndCondition) {
   let opponent_player = player_flip(moving_player)
 
@@ -527,7 +553,7 @@ fn is_checkmate_or_stalemate(
 fn is_threefold_repetition(
   moved_board board: Board,
   moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Bool {
   // We flip the player as we are interested wether the
   // opponent now has reached a position with moves which occured three times
@@ -559,7 +585,7 @@ fn position_is_reached_three_times_loop(
   player player: Player,
   current_position current_position: #(Board, set.Set(AvailableFigureMove)),
   current_position_previous_state current_position_previous_state: Option(
-    #(Move, Game),
+    #(Move, GameState),
   ),
   count count: Int,
 ) -> Bool {
@@ -622,14 +648,14 @@ fn position_is_reached_three_times_loop(
 // Checks whether the fifty move rule is satisfied.
 fn is_fifty_move_rule(
   board board: Board,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Bool {
   is_fifty_move_rule_loop(current_board: board, previous_state:, counter: 0)
 }
 
 fn is_fifty_move_rule_loop(
   current_board board: Board,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
   counter counter: Int,
 ) -> Bool {
   use <- bool.guard(when: counter >= 100, return: True)
@@ -680,7 +706,7 @@ fn is_fifty_move_rule_loop(
 fn get_all_legal_moves_on_arbitrary_board(
   board board: Board,
   moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> set.Set(AvailableFigureMove) {
   let king = case moving_player {
     White -> board.white_king
@@ -723,7 +749,7 @@ fn get_legal_moves_on_arbitrary_board(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
   use moves <- result.try(get_unchecked_moves(
     board,
@@ -759,7 +785,7 @@ fn get_unchecked_moves(
   board board: Board,
   figure coord: Coordinate,
   moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
   let selected_figure =
     board_get(board, coord)
@@ -984,7 +1010,7 @@ fn get_moves_for_king(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> set.Set(AvailableFigureMove) {
   let standard_moves =
     [
@@ -1031,7 +1057,7 @@ fn get_moves_for_king(
 fn can_short_castle(
   board board: Board,
   moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Bool {
   let row = case moving_player {
     White -> Row1
@@ -1080,7 +1106,7 @@ fn can_short_castle(
 fn can_long_castle(
   board board: Board,
   moving_player moving_player: Player,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Bool {
   let row = case moving_player {
     White -> Row1
@@ -1132,7 +1158,7 @@ fn can_long_castle(
 fn king_and_rook_have_never_moved(
   king_start_coord king: Coordinate,
   rook_start_coord rook: Coordinate,
-  previous_state previous_state: Option(#(Move, Game)),
+  previous_state previous_state: Option(#(Move, GameState)),
 ) -> Bool {
   // Recursively traverse entire state history and check for every
   // state, that king and rook are in their right positions.
