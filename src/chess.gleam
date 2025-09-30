@@ -69,6 +69,9 @@ pub type DrawCondition {
 
   /// The same position has been reached three times. See [here](https://www.chess.com/terms/draw-chess#threefold-repetition) for more info.
   ThreefoldRepition
+
+  /// No pawns have been moved and no figures have been captured in 50 full-moves (which is 100 `Move`s as a full-move consists of one move of each player). See [here](https://www.chess.com/terms/draw-chess#fifty-move-rule) for more info.
+  FiftyMoveRule
 }
 
 /// Represents all figure positions on a chess board.
@@ -460,6 +463,15 @@ fn is_game_ended(
   // Early return
   use <- option.lazy_or(ended)
 
+  // Check fifty move rule
+  let ended = case is_fifty_move_rule(board:, previous_state:) {
+    True -> Some(Draw(by: FiftyMoveRule))
+    False -> None
+  }
+
+  // Early return
+  use <- option.lazy_or(ended)
+
   // No end condition has been found
   None
 }
@@ -604,6 +616,63 @@ fn position_is_reached_three_times_loop(
           )
         }
       }
+  }
+}
+
+// Checks whether the fifty move rule is satisfied.
+fn is_fifty_move_rule(
+  board board: Board,
+  previous_state previous_state: Option(#(Move, Game)),
+) -> Bool {
+  is_fifty_move_rule_loop(current_board: board, previous_state:, counter: 0)
+}
+
+fn is_fifty_move_rule_loop(
+  current_board board: Board,
+  previous_state previous_state: Option(#(Move, Game)),
+  counter counter: Int,
+) -> Bool {
+  use <- bool.guard(when: counter >= 100, return: True)
+
+  case previous_state {
+    None -> False
+    Some(#(previous_move, previous_game)) -> {
+      let last_move_captured_a_figure = {
+        let amount_now = board_get_amount_figures(board)
+        let amount_prev = board_get_amount_figures(previous_game.board)
+        amount_now != amount_prev
+      }
+
+      // early return if the last move captured a figure
+      use <- bool.guard(when: last_move_captured_a_figure, return: False)
+
+      let last_move_moved_a_pawn = case previous_move {
+        // Panics are ok here because the previous move should always be a PlayerMovesFigure
+        PlayerForfeits -> panic as critical_error_text
+        PlayersAgreeToDraw -> panic as critical_error_text
+        PlayerMovesFigure(previous_move) ->
+          case previous_move {
+            EnPassant(_, _) -> True
+            PawnPromotion(_, _, _) -> True
+            LongCastle -> False
+            ShortCastle -> False
+            StandardFigureMove(from, _) ->
+              case board_get(previous_game.board, from) {
+                Some(#(Pawn, _)) -> True
+                _ -> False
+              }
+          }
+      }
+
+      // early return if the last move moved a pawn
+      use <- bool.guard(when: last_move_moved_a_pawn, return: False)
+
+      is_fifty_move_rule_loop(
+        current_board: previous_game.board,
+        previous_state: previous_game.previous_state,
+        counter: counter + 1,
+      )
+    }
   }
 }
 

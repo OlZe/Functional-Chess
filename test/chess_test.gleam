@@ -1415,6 +1415,287 @@ pub fn threefold_repetition_ignores_positions_with_special_moves_test() {
   )
 }
 
+pub fn fifty_move_rule_test() {
+  let start = {
+    let board =
+      c.Board(
+        white_king: coord.a1,
+        black_king: coord.a8,
+        other_figures: dict.from_list([#(coord.e5, #(Pawn, White))]),
+      )
+    c.Game(board, c.GameOngoing(White), None)
+  }
+
+  // We'll walk the kings back and forth in a straight line of different lengths
+  // to avoid a threefold repetition
+
+  let path_white =
+    [
+      coord.a1,
+      coord.b1,
+      coord.c1,
+      coord.d1,
+      coord.e1,
+      coord.f1,
+      coord.g1,
+      coord.h1,
+      coord.h2,
+      coord.g2,
+      coord.f2,
+      coord.e2,
+      coord.d2,
+      coord.c2,
+      coord.b2,
+      coord.a2,
+      coord.a1,
+    ]
+    |> list.window_by_2()
+    |> list.repeat(10)
+    |> list.flatten()
+    |> list.take(50)
+
+  let path_black =
+    [
+      coord.a8,
+      coord.b8,
+      coord.c8,
+      coord.d8,
+      coord.e8,
+      coord.f8,
+      coord.g8,
+      coord.g7,
+      coord.f7,
+      coord.e7,
+      coord.d7,
+      coord.c7,
+      coord.b7,
+      coord.a7,
+      coord.a8,
+    ]
+    |> list.window_by_2()
+    |> list.repeat(10)
+    |> list.flatten()
+    |> list.take(50)
+
+  let drawn_game =
+    list.zip(path_white, path_black)
+    |> list.fold(start, fn(game, move) {
+      let #(#(white_from, white_to), #(black_from, black_to)) = move
+
+      let assert Ok(game) =
+        c.player_move(
+          game:,
+          move: c.PlayerMovesFigure(c.StandardFigureMove(
+            from: white_from,
+            to: white_to,
+          )),
+        )
+
+      let assert Ok(game) =
+        c.player_move(
+          game:,
+          move: c.PlayerMovesFigure(c.StandardFigureMove(
+            from: black_from,
+            to: black_to,
+          )),
+        )
+
+      game
+    })
+
+  assert drawn_game.status == c.GameEnded(c.Draw(by: c.FiftyMoveRule))
+}
+
+pub fn fifty_move_rule_disqualified_by_pawn_move_test() {
+  let start = {
+    let board =
+      c.Board(
+        white_king: coord.a1,
+        black_king: coord.a8,
+        other_figures: dict.from_list([#(coord.e4, #(Pawn, White))]),
+      )
+    c.Game(board, c.GameOngoing(White), None)
+  }
+
+  // We'll walk the kings back and forth in a straight line of different lengths
+  // to avoid a threefold repetition
+
+  let path_white =
+    [
+      coord.a1,
+      coord.b1,
+      coord.c1,
+      coord.d1,
+      coord.e1,
+      coord.f1,
+      coord.g1,
+      coord.h1,
+      coord.h2,
+      coord.g2,
+      coord.f2,
+      coord.e2,
+      coord.d2,
+      coord.c2,
+      coord.b2,
+      coord.a2,
+      coord.a1,
+    ]
+    |> list.window_by_2()
+    |> list.repeat(10)
+    |> list.flatten()
+    |> list.take(49)
+    // Add a pawn move at the end
+    |> list.append([#(coord.e4, coord.e5)])
+
+  let path_black =
+    [
+      coord.a8,
+      coord.b8,
+      coord.c8,
+      coord.d8,
+      coord.e8,
+      coord.f8,
+      coord.g8,
+      coord.g7,
+      coord.f7,
+      coord.e7,
+      coord.d7,
+      coord.c7,
+      coord.b7,
+      coord.a7,
+      coord.a8,
+    ]
+    |> list.window_by_2()
+    |> list.repeat(10)
+    |> list.flatten()
+    |> list.take(50)
+
+  let drawn_game =
+    list.zip(path_white, path_black)
+    |> list.fold(start, fn(game, move) {
+      let #(#(white_from, white_to), #(black_from, black_to)) = move
+
+      let assert Ok(game) =
+        c.player_move(
+          game:,
+          move: c.PlayerMovesFigure(c.StandardFigureMove(
+            from: white_from,
+            to: white_to,
+          )),
+        )
+
+      let assert Ok(game) =
+        c.player_move(
+          game:,
+          move: c.PlayerMovesFigure(c.StandardFigureMove(
+            from: black_from,
+            to: black_to,
+          )),
+        )
+
+      game
+    })
+
+  assert drawn_game.status == c.GameOngoing(White)
+}
+
+pub fn fifty_move_rule_disqualified_by_capture_test() {
+  let start = {
+    let board =
+      c.Board(
+        white_king: coord.a1,
+        black_king: coord.a8,
+        other_figures: dict.from_list([
+          #(coord.g3, #(Pawn, White)),
+          #(coord.b3, #(Knight, White)),
+          #(coord.d4, #(Pawn, Black)),
+        ]),
+      )
+    c.Game(board, c.GameOngoing(White), None)
+  }
+
+  // We'll walk the kings back and forth in a straight line of different lengths
+  // to avoid a threefold repetition
+
+  let path_white =
+    [
+      coord.a1,
+      coord.b1,
+      coord.c1,
+      coord.d1,
+      coord.e1,
+      coord.f1,
+      coord.g1,
+      coord.h1,
+      coord.h2,
+      coord.g2,
+      coord.f2,
+      coord.e2,
+      coord.d2,
+      coord.c2,
+      coord.b2,
+      coord.a2,
+      coord.a1,
+    ]
+    |> list.window_by_2()
+    |> list.repeat(10)
+    |> list.flatten()
+    |> list.take(49)
+    // Add knight captures pawn at the end
+    |> list.append([#(coord.b3, coord.d4)])
+
+  let path_black =
+    [
+      coord.a8,
+      coord.b8,
+      coord.c8,
+      coord.d8,
+      coord.e8,
+      coord.f8,
+      coord.g8,
+      coord.g7,
+      coord.f7,
+      coord.e7,
+      coord.d7,
+      coord.c7,
+      coord.b7,
+      coord.a7,
+      coord.a8,
+    ]
+    |> list.window_by_2()
+    |> list.repeat(10)
+    |> list.flatten()
+    |> list.take(50)
+
+  let drawn_game =
+    list.zip(path_white, path_black)
+    |> list.fold(start, fn(game, move) {
+      let #(#(white_from, white_to), #(black_from, black_to)) = move
+
+      let assert Ok(game) =
+        c.player_move(
+          game:,
+          move: c.PlayerMovesFigure(c.StandardFigureMove(
+            from: white_from,
+            to: white_to,
+          )),
+        )
+
+      let assert Ok(game) =
+        c.player_move(
+          game:,
+          move: c.PlayerMovesFigure(c.StandardFigureMove(
+            from: black_from,
+            to: black_to,
+          )),
+        )
+
+      game
+    })
+
+  assert drawn_game.status == c.GameOngoing(White)
+}
+
 fn combine_renders(before: String, after: String) -> String {
   "Start:\n" <> before <> "\n---------------------\nAfter:\n" <> after
 }
