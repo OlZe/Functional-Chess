@@ -3,7 +3,7 @@
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://olze.github.io/Functional-Chess/chess.html)
 [![GitHub](https://img.shields.io/badge/GitHub-source-blue)](https://github.com/OlZe/Functional-Chess)
 
-> ⚠️🛠️ This project is a work in progress! While the features are complete, this project is still undergoing refactoring and documentation efforts.
+> ⚠️🛠️ This project is a work in progress!
 
 This is the game of chess implemented as a [Gleam](https://gleam.run/) library using a purely functional programming paradigm.
 
@@ -60,7 +60,7 @@ pub fn main() {
 - [x] Rigorous Testing
 - [x] Start in standard chess starting position
 - [x] Request all legal moves of a given figure
-- [x] History of past board positions and moves
+- [ ] History of past board positions and moves
 - [x] Move the figures according to professional chess rules
   - [x] Regular figure movement and capture
   - [x] Prohibit moves that leave the king in check
