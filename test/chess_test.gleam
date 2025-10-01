@@ -1658,6 +1658,34 @@ pub fn fifty_move_rule_disqualified_by_capture_test() {
   assert c.get_status(drawn_game) == c.GameOngoing(White)
 }
 
+pub fn move_history_test() {
+  let game = c.new_game()
+  let assert Ok(game) =
+    c.player_move(
+      game,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e2, coord.e4)),
+    )
+
+  let assert Ok(game) =
+    c.player_move(
+      game,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.d7, coord.d5)),
+    )
+
+  let assert Ok(game) =
+    c.player_move(
+      game,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e4, coord.d5)),
+    )
+
+  assert c.get_history(game)
+    == [
+      #(c.StandardFigureMove(coord.e2, coord.e4), c.White),
+      #(c.StandardFigureMove(coord.d7, coord.d5), c.Black),
+      #(c.StandardFigureMove(coord.e4, coord.d5), c.White),
+    ]
+}
+
 fn combine_renders(before: String, after: String) -> String {
   "Start:\n" <> before <> "\n---------------------\nAfter:\n" <> after
 }

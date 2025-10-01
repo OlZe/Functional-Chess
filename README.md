@@ -65,13 +65,15 @@ pub fn main() {
 
 ## Features
 
+Play chess acoording to professional chess rules!
+
 - [x] Descriptive Error returns
 - [x] Rigorous Testing
 - [x] Start in standard chess starting position
 - [x] Request all legal moves of a given figure
-- [ ] History of past board positions and moves
-- [x] Move the figures according to professional chess rules
-  - [x] Regular figure movement and capture
+- [x] See a history of past moves
+- [ ] Request past board positions
+- [x] Move the figures
   - [x] Prohibit moves that leave the king in check
   - [x] Pawn Promotion
   - [x] En passant

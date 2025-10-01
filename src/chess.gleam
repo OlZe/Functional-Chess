@@ -20,7 +20,11 @@ import gleam/set
 /// 
 /// Update with [`player_move`](#player_move).
 pub opaque type GameState {
-  GameState(internal: OngoingGameState, status: GameStatus)
+  GameState(
+    internal: OngoingGameState,
+    history: List(#(FigureMove, Player)),
+    status: GameStatus,
+  )
 }
 
 /// Game state, which is verified to not have ended.
@@ -222,6 +226,13 @@ pub fn get_status(game game: GameState) -> GameStatus {
   game.status
 }
 
+/// Returns a history of moves along with which player did them.
+/// 
+/// The 1st element is the 1st move played and the last element is the previously played move.
+pub fn get_history(game game: GameState) -> List(#(FigureMove, Player)) {
+  game.history
+}
+
 /// Creates a new game in the standard starting chess position.
 pub fn new_game() -> GameState {
   GameState(
@@ -237,6 +248,7 @@ pub fn new_game() -> GameState {
       threefold_repetition_counter: counter.new(),
     ),
     status: GameOngoing(White),
+    history: [],
   )
 }
 
@@ -320,6 +332,7 @@ pub fn new_custom_game(
         threefold_repetition_counter: counter.new(),
       ),
       status: GameOngoing(player),
+      history: [],
     )
 
   // Check if enemy is in check
@@ -358,13 +371,28 @@ pub fn player_move(
   move move: Move,
 ) -> Result(GameState, PlayerMoveError) {
   case game {
-    GameState(_, GameEnded(_)) -> Error(PlayerMoveWhileGameAlreadyOver)
-    GameState(game, GameOngoing(moving_player)) -> {
-      assert game.moving_player == moving_player as critical_error_text
+    GameState(status: GameEnded(_), ..) -> Error(PlayerMoveWhileGameAlreadyOver)
+    GameState(
+      status: GameOngoing(moving_player),
+      internal: internal_game,
+      history:,
+    ) -> {
+      assert internal_game.moving_player == moving_player as critical_error_text
       case move {
-        PlayerForfeits -> Ok(forfeit(game:))
-        PlayersAgreeToDraw -> Ok(draw(game:))
-        PlayerMovesFigure(move) -> player_move_figure(game:, move:)
+        PlayerForfeits ->
+          Ok(
+            GameState(
+              ..game,
+              status: GameEnded(Victory(
+                winner: player_flip(moving_player),
+                by: Forfeited,
+              )),
+            ),
+          )
+        PlayersAgreeToDraw ->
+          Ok(GameState(..game, status: GameEnded(Draw(MutualAgreement))))
+        PlayerMovesFigure(move) ->
+          player_move_figure(game: internal_game, move:, move_history: history)
       }
     }
   }
@@ -417,8 +445,8 @@ pub fn get_moves(
   figure coord: Coordinate,
 ) -> Result(set.Set(AvailableFigureMove), GetMovesError) {
   case game {
-    GameState(_, GameEnded(_)) -> Error(GetMovesWhileGameAlreadyOver)
-    GameState(game, GameOngoing(moving_player)) -> {
+    GameState(status: GameEnded(_), ..) -> Error(GetMovesWhileGameAlreadyOver)
+    GameState(status: GameOngoing(moving_player), internal: game, ..) -> {
       assert game.moving_player == moving_player as critical_error_text
 
       get_checked_moves(game:, figure: coord)
@@ -432,6 +460,7 @@ pub fn get_moves(
 fn player_move_figure(
   game game: OngoingGameState,
   move move: FigureMove,
+  move_history move_history: List(#(FigureMove, Player)),
 ) -> Result(GameState, PlayerMoveError) {
   {
     // Check if given move is legal by getting the available moves
@@ -483,19 +512,13 @@ fn player_move_figure(
         ..new_game,
         moving_player: player_flip(new_game.moving_player),
       )
-    Ok(GameState(internal: new_game, status: new_status))
+
+    Ok(GameState(
+      internal: new_game,
+      status: new_status,
+      history: move_history |> list.append([#(move, game.moving_player)]),
+    ))
   }
-}
-
-/// Forfeit the game to the opposing player.
-fn forfeit(game game: OngoingGameState) -> GameState {
-  let winner = player_flip(game.moving_player)
-  GameState(internal: game, status: GameEnded(Victory(winner:, by: Forfeited)))
-}
-
-/// Draw the game through mutual agreement of both players.
-fn draw(game game: OngoingGameState) -> GameState {
-  GameState(internal: game, status: GameEnded(Draw(by: MutualAgreement)))
 }
 
 /// Determines whether the player is being checked by its opponent.
