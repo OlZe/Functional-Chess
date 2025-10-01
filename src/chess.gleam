@@ -4,6 +4,7 @@
 //// 
 //// Use [`new_game`](#new_game) to start a game and [`player_move`](#player_move) to make game moves!
 
+import chess/internal/counter
 import gleam/bool
 import gleam/dict
 import gleam/int
@@ -34,6 +35,19 @@ type OngoingGameState {
     short_castle_disqualified_black: Bool,
     long_castle_disqualified_black: Bool,
     fifty_move_rule_counter: Int,
+    threefold_repetition_counter: counter.Counter(ThreefoldRepetitionPosition),
+  )
+}
+
+type ThreefoldRepetitionPosition {
+  ThreefoldRepetitionPosition(
+    board: Board,
+    moving_player: Player,
+    en_passant_possible: Option(File),
+    short_castle_disqualified_white: Bool,
+    long_castle_disqualified_white: Bool,
+    short_castle_disqualified_black: Bool,
+    long_castle_disqualified_black: Bool,
   )
 }
 
@@ -252,6 +266,7 @@ pub fn new_custom_game(
       short_castle_disqualified_black: !black_short_castle,
       long_castle_disqualified_black: !black_long_castle,
       fifty_move_rule_counter: 0,
+      threefold_repetition_counter: counter.new(),
     ),
     status: GameOngoing(player),
   )
@@ -547,82 +562,22 @@ fn is_checkmate_or_stalemate(
   }
 }
 
-// Checks if this position has been reached three times by the `player`.
-// TODO:
+// Checks if this position has been reached for the third time now.
 fn is_threefold_repetition(game game: OngoingGameState) -> Bool {
-  False
+  // Flip player, as it's the opponent's next and it would be a threefold
+  // repetition from his piont of view.
+
+  let game =
+    OngoingGameState(..game, moving_player: player_flip(game.moving_player))
+
+  let position = get_threefold_repetition_position_from_game(game:)
+
+  game.threefold_repetition_counter
+  |> counter.get(position)
+  // If this position is 2 times in the history, then it has now been
+  // reached for the third time
+  >= 2
 }
-
-// // Checks if this position has been reached three times by the `player`.
-// fn is_threefold_repetition(game game: OngoingGameState) -> Bool {
-//   // We flip the player as we are interested wether the
-//   // opponent now has reached a position with moves which occured three times
-//   let player = player_flip(game.moving_player)
-//   let game = OngoingGameState(..game, moving_player: player)
-
-//   let position = {
-//     let moves = get_all_legal_moves_on_arbitrary_board(game:)
-//     #(game.board, moves)
-//   }
-
-//   position_is_reached_three_times_loop(
-//     game:,
-//     target_position: position,
-//     count: 0,
-//   )
-// }
-
-// // Checks if `target_position` has been reached three times by `player`
-// fn position_is_reached_three_times_loop(
-//   game game: OngoingGameState,
-//   target_position target_position: #(Board, set.Set(AvailableFigureMove)),
-//   count count: Int,
-// ) -> Bool {
-//   let position = {
-//     let moves = get_all_legal_moves_on_arbitrary_board(game:)
-//     #(game.board, moves)
-//   }
-
-//   let count = case position == target_position {
-//     True -> count + 1
-//     False -> count
-//   }
-
-//   // Early return, if threefold position was found
-//   use <- bool.guard(when: count >= 3, return: True)
-
-//   // We want the previous position for `player`, so we have
-//   // to go back two positions
-//   case game.previous_state {
-//     // No more previous moves => no threefold repetition
-//     None -> False
-//     // This is the opponent's previous position, go back one more
-//     Some(#(_, opp_previous_position)) ->
-//       case opp_previous_position.previous_state {
-//         // `player` has no previous position
-//         None -> False
-//         Some(#(_, previous_game)) -> {
-//           // Prepare to call function with previous_game
-
-//           // Optimization: If a figure has been captured (meaning: if the amount
-//           // of figures change), then a three-fold-repetition is impossible as the
-//           // amount of figures in a chess game only ever decreases.
-//           let is_figure_captured = {
-//             let amount_now = board_get_amount_figures(game.board)
-//             let amount_previous = board_get_amount_figures(previous_game.board)
-//             amount_now != amount_previous
-//           }
-//           use <- bool.guard(when: is_figure_captured, return: False)
-
-//           position_is_reached_three_times_loop(
-//             game: previous_game,
-//             target_position:,
-//             count:,
-//           )
-//         }
-//       }
-//   }
-// }
 
 // Checks whether the fifty move rule is satisfied.
 fn is_fifty_move_rule(game game: OngoingGameState) -> Bool {
@@ -1261,13 +1216,6 @@ fn board_get(
   }
 }
 
-/// Returns how many figures on the board are in play.
-/// 
-/// Includes both kings.
-fn board_get_amount_figures(board board: Board) -> Int {
-  dict.size(board.other_figures) + 2
-}
-
 /// Execute a `FigureMove` and returns a new `OngoingGameState`. Does not flip `moving_player`.
 /// 
 /// Peforms no checking wether the provided move is legal. Overrides other figures at the move's destination.
@@ -1280,24 +1228,37 @@ fn do_move(
   let board = game.board
   let moving_player = game.moving_player
 
-  // Dear lord forgive me for this monster case, but idk how to do it better
+  // Dear lord forgive me for this monster case, but it's so hard to refactor.
   case move {
     StandardFigureMove(from:, to:) -> {
+      let is_capture = case dict.get(game.board.other_figures, to) {
+        Ok(_) -> True
+        Error(_) -> False
+      }
+
+      // Update fifty move rule counter
       let fifty_move_rule_counter = {
+        // Reset counter on capture
+        use <- bool.guard(when: is_capture, return: 0)
+
         // Reset counter on pawm move
         let is_pawn = case dict.get(game.board.other_figures, from) {
           Ok(#(Pawn, _)) -> True
           _ -> False
         }
         use <- bool.guard(when: is_pawn, return: 0)
-        // Reset counter on capture
-        let is_capture = case dict.get(game.board.other_figures, to) {
-          Ok(_) -> True
-          Error(_) -> False
-        }
-        use <- bool.guard(when: is_capture, return: 0)
 
+        // Otherwise increase counter
         game.fifty_move_rule_counter + 1
+      }
+
+      // Update threefold repetition counter
+      let threefold_repetition_counter = {
+        // Reset counter on capture
+        use <- bool.guard(when: is_capture, return: counter.new())
+
+        game.threefold_repetition_counter
+        |> counter.increment(get_threefold_repetition_position_from_game(game:))
       }
 
       case board {
@@ -1309,6 +1270,7 @@ fn do_move(
             short_castle_disqualified_white: True,
             long_castle_disqualified_white: True,
             fifty_move_rule_counter:,
+            threefold_repetition_counter:,
             board: Board(
               white_king: to,
               black_king:,
@@ -1323,6 +1285,7 @@ fn do_move(
             en_passant_possible: None,
             short_castle_disqualified_black: True,
             long_castle_disqualified_black: True,
+            threefold_repetition_counter:,
             fifty_move_rule_counter:,
             board: Board(
               white_king:,
@@ -1369,6 +1332,7 @@ fn do_move(
             long_castle_disqualified_white:,
             short_castle_disqualified_black:,
             long_castle_disqualified_black:,
+            threefold_repetition_counter:,
             fifty_move_rule_counter:,
             board: Board(
               white_king:,
@@ -1389,6 +1353,7 @@ fn do_move(
         ..game,
         en_passant_possible: None,
         fifty_move_rule_counter: 0,
+        threefold_repetition_counter: counter.new(),
         board: Board(
           white_king: board.white_king,
           black_king: board.black_king,
@@ -1414,6 +1379,7 @@ fn do_move(
         ..game,
         en_passant_possible: None,
         fifty_move_rule_counter: 0,
+        threefold_repetition_counter: counter.new(),
         board: Board(
           white_king: board.white_king,
           black_king: board.black_king,
@@ -1448,6 +1414,10 @@ fn do_move(
             en_passant_possible: None,
             short_castle_disqualified_white: True,
             long_castle_disqualified_white: True,
+            threefold_repetition_counter: game.threefold_repetition_counter
+              |> counter.increment(get_threefold_repetition_position_from_game(
+                game:,
+              )),
             board: Board(
               white_king: king_to,
               black_king: board.black_king,
@@ -1462,6 +1432,10 @@ fn do_move(
             en_passant_possible: None,
             short_castle_disqualified_black: True,
             long_castle_disqualified_black: True,
+            threefold_repetition_counter: game.threefold_repetition_counter
+              |> counter.increment(get_threefold_repetition_position_from_game(
+                game:,
+              )),
             board: Board(
               white_king: board.white_king,
               black_king: king_to,
@@ -1498,6 +1472,10 @@ fn do_move(
             en_passant_possible: None,
             short_castle_disqualified_white: True,
             long_castle_disqualified_white: True,
+            threefold_repetition_counter: game.threefold_repetition_counter
+              |> counter.increment(get_threefold_repetition_position_from_game(
+                game:,
+              )),
             board: Board(
               white_king: king_to,
               black_king: board.black_king,
@@ -1512,6 +1490,10 @@ fn do_move(
             en_passant_possible: None,
             short_castle_disqualified_black: True,
             long_castle_disqualified_black: True,
+            threefold_repetition_counter: game.threefold_repetition_counter
+              |> counter.increment(get_threefold_repetition_position_from_game(
+                game:,
+              )),
             board: Board(
               white_king: board.white_king,
               black_king: king_to,
@@ -1633,6 +1615,20 @@ fn player_flip(player player: Player) -> Player {
     Black -> White
     White -> Black
   }
+}
+
+fn get_threefold_repetition_position_from_game(
+  game game: OngoingGameState,
+) -> ThreefoldRepetitionPosition {
+  ThreefoldRepetitionPosition(
+    board: game.board,
+    moving_player: game.moving_player,
+    en_passant_possible: game.en_passant_possible,
+    short_castle_disqualified_white: game.short_castle_disqualified_white,
+    long_castle_disqualified_white: game.long_castle_disqualified_white,
+    short_castle_disqualified_black: game.short_castle_disqualified_black,
+    long_castle_disqualified_black: game.long_castle_disqualified_black,
+  )
 }
 
 const critical_error_text = "Critical internal error!\n"
