@@ -72,7 +72,7 @@ Play chess acoording to professional chess rules!
   - [x] in a legal custom position
 - [ ] Move History
   - [ ] In proper algebraic chess notation
-  - [ ] Request past board positions
+  - [x] Request past board positions
 - [x] Move the figures
   - [x] Request all legal moves of a given figure
   - [x] Prohibit moves that leave the king in check

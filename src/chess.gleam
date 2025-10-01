@@ -24,6 +24,7 @@ pub opaque type GameState {
     internal: OngoingGameState,
     history: List(#(FigureMove, Player)),
     status: GameStatus,
+    starting_position: OngoingGameState,
   )
 }
 
@@ -235,8 +236,8 @@ pub fn get_history(game game: GameState) -> List(#(FigureMove, Player)) {
 
 /// Creates a new game in the standard starting chess position.
 pub fn new_game() -> GameState {
-  GameState(
-    internal: OngoingGameState(
+  let state =
+    OngoingGameState(
       board: board_new(),
       moving_player: White,
       en_passant_possible: None,
@@ -246,9 +247,13 @@ pub fn new_game() -> GameState {
       long_castle_disqualified_black: False,
       fifty_move_rule_counter: 0,
       threefold_repetition_counter: counter.new(),
-    ),
+    )
+
+  GameState(
+    internal: state,
     status: GameOngoing(White),
     history: [],
+    starting_position: state,
   )
 }
 
@@ -318,21 +323,25 @@ pub fn new_custom_game(
   }
 
   // Build game
+  let state =
+    OngoingGameState(
+      board:,
+      moving_player: player,
+      en_passant_possible: None,
+      short_castle_disqualified_white: !white_short_castle,
+      long_castle_disqualified_white: !white_long_castle,
+      short_castle_disqualified_black: !black_short_castle,
+      long_castle_disqualified_black: !black_long_castle,
+      fifty_move_rule_counter: 0,
+      threefold_repetition_counter: counter.new(),
+    )
+
   let game =
     GameState(
-      internal: OngoingGameState(
-        board:,
-        moving_player: player,
-        en_passant_possible: None,
-        short_castle_disqualified_white: !white_short_castle,
-        long_castle_disqualified_white: !white_long_castle,
-        short_castle_disqualified_black: !black_short_castle,
-        long_castle_disqualified_black: !black_long_castle,
-        fifty_move_rule_counter: 0,
-        threefold_repetition_counter: counter.new(),
-      ),
+      internal: state,
       status: GameOngoing(player),
       history: [],
+      starting_position: state,
     )
 
   // Check if enemy is in check
@@ -372,11 +381,7 @@ pub fn player_move(
 ) -> Result(GameState, PlayerMoveError) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(PlayerMoveWhileGameAlreadyOver)
-    GameState(
-      status: GameOngoing(moving_player),
-      internal: internal_game,
-      history:,
-    ) -> {
+    GameState(status: GameOngoing(moving_player), internal: internal_game, ..) -> {
       assert internal_game.moving_player == moving_player as critical_error_text
       case move {
         PlayerForfeits ->
@@ -391,8 +396,18 @@ pub fn player_move(
           )
         PlayersAgreeToDraw ->
           Ok(GameState(..game, status: GameEnded(Draw(MutualAgreement))))
-        PlayerMovesFigure(move) ->
-          player_move_figure(game: internal_game, move:, move_history: history)
+        PlayerMovesFigure(move) -> {
+          use #(new_internal_game, new_status) <- result.try(player_move_figure(
+            game: internal_game,
+            move:,
+          ))
+          Ok(GameState(
+            internal: new_internal_game,
+            history: game.history |> list.append([#(move, moving_player)]),
+            status: new_status,
+            starting_position: game.starting_position,
+          ))
+        }
       }
     }
   }
@@ -455,13 +470,75 @@ pub fn get_moves(
   }
 }
 
+/// Represent an error returned by `get_past_position`.
+pub type GetPastPositionError {
+  /// Tried to get a past position with a negative move number.
+  GetPastPositionWithNegativeMoveNumber(passed_move_number: Int)
+
+  /// Tried to get a past position with a move number that exceeds the
+  /// length of the current game's history.
+  GetPastPositionWithMoveNumberExceedingHistory(
+    passed_move_number: Int,
+    allowed_maximum_move_number: Int,
+  )
+}
+
+/// Retrieve a past board position from a `game` according to its move history.
+/// 
+/// Note that the term `move` does not apply to the chess term *full-move*, rather
+/// it is a *half-move* or a *ply*, which are done by one player only.
+/// 
+/// A `move_number` of 0 returns the initial starting position.
+/// 
+/// A `move_number` of 1 returns the position after the first *half-move*.
+/// 
+/// Errors if `move_number` is negative or larger than the `game`'s history.
+pub fn get_past_position(
+  game game: GameState,
+  move_number move_number: Int,
+) -> Result(GameState, GetPastPositionError) {
+  use <- bool.guard(
+    when: move_number < 0,
+    return: Error(GetPastPositionWithNegativeMoveNumber(
+      passed_move_number: move_number,
+    )),
+  )
+
+  let max_move_number = list.length(game.history)
+  use <- bool.guard(
+    when: move_number > max_move_number,
+    return: Error(GetPastPositionWithMoveNumberExceedingHistory(
+      passed_move_number: move_number,
+      allowed_maximum_move_number: max_move_number,
+    )),
+  )
+
+  let init_game =
+    GameState(
+      internal: game.starting_position,
+      history: [],
+      status: GameOngoing(game.starting_position.moving_player),
+      starting_position: game.starting_position,
+    )
+
+  game.history
+  |> list.take(move_number)
+  |> list.fold(init_game, fn(game, move) {
+    let #(move, moving_player) = move
+    assert game.status == GameOngoing(moving_player) as critical_error_text
+
+    let assert Ok(game) = player_move(game:, move: PlayerMovesFigure(move))
+    game
+  })
+  |> Ok
+}
+
 /// Executes a `FigureMove` and checks whether it's legal as well
 /// checking for an `EndCondition`.
 fn player_move_figure(
   game game: OngoingGameState,
   move move: FigureMove,
-  move_history move_history: List(#(FigureMove, Player)),
-) -> Result(GameState, PlayerMoveError) {
+) -> Result(#(OngoingGameState, GameStatus), PlayerMoveError) {
   {
     // Check if given move is legal by getting the available moves
     // from the move's from-square and checking if given move is in that set
@@ -513,11 +590,7 @@ fn player_move_figure(
         moving_player: player_flip(new_game.moving_player),
       )
 
-    Ok(GameState(
-      internal: new_game,
-      status: new_status,
-      history: move_history |> list.append([#(move, game.moving_player)]),
-    ))
+    Ok(#(new_game, new_status))
   }
 }
 

@@ -1686,6 +1686,30 @@ pub fn move_history_test() {
     ]
 }
 
+pub fn get_past_board_position_test() {
+  let init = c.new_game()
+  let assert Ok(move11) =
+    c.player_move(
+      init,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e2, coord.e4)),
+    )
+
+  let assert Ok(move12) =
+    c.player_move(
+      move11,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.d7, coord.d5)),
+    )
+
+  let assert Ok(move21) =
+    c.player_move(
+      move12,
+      c.PlayerMovesFigure(c.StandardFigureMove(coord.e4, coord.d5)),
+    )
+
+  let assert Ok(move12_of_history) = c.get_past_position(move21, 2)
+  assert move12_of_history == move12
+}
+
 fn combine_renders(before: String, after: String) -> String {
   "Start:\n" <> before <> "\n---------------------\nAfter:\n" <> after
 }
