@@ -33,6 +33,7 @@ type OngoingGameState {
     long_castle_disqualified_white: Bool,
     short_castle_disqualified_black: Bool,
     long_castle_disqualified_black: Bool,
+    fifty_move_rule_counter: Int,
   )
 }
 
@@ -250,6 +251,7 @@ pub fn new_custom_game(
       long_castle_disqualified_white: !white_long_castle,
       short_castle_disqualified_black: !black_short_castle,
       long_castle_disqualified_black: !black_long_castle,
+      fifty_move_rule_counter: 0,
     ),
     status: GameOngoing(player),
   )
@@ -492,15 +494,12 @@ fn is_game_ended(game game: OngoingGameState) -> Option(EndCondition) {
   use <- option.lazy_or(ended)
 
   // Check fifty move rule
-  // let ended = case
-  //   is_fifty_move_rule(board: game.board, previous_state: game.previous_state)
-  // {
-  //   True -> Some(Draw(by: FiftyMoveRule))
-  //   False -> None
-  // }
-
-  // // Early return
-  // use <- option.lazy_or(ended)
+  let ended = case is_fifty_move_rule(game:) {
+    True -> Some(Draw(by: FiftyMoveRule))
+    False -> None
+  }
+  // Early return
+  use <- option.lazy_or(ended)
 
   // No end condition has been found
   None
@@ -625,62 +624,11 @@ fn is_threefold_repetition(game game: OngoingGameState) -> Bool {
 //   }
 // }
 
-// // Checks whether the fifty move rule is satisfied.
-// fn is_fifty_move_rule(
-//   board board: Board,
-//   previous_state previous_state: Option(#(Move, OngoingGameState)),
-// ) -> Bool {
-//   is_fifty_move_rule_loop(current_board: board, previous_state:, counter: 0)
-// }
-
-// fn is_fifty_move_rule_loop(
-//   current_board board: Board,
-//   previous_state previous_state: Option(#(Move, OngoingGameState)),
-//   counter counter: Int,
-// ) -> Bool {
-//   use <- bool.guard(when: counter >= 100, return: True)
-
-//   case previous_state {
-//     None -> False
-//     Some(#(previous_move, previous_game)) -> {
-//       let last_move_captured_a_figure = {
-//         let amount_now = board_get_amount_figures(board)
-//         let amount_prev = board_get_amount_figures(previous_game.board)
-//         amount_now != amount_prev
-//       }
-
-//       // early return if the last move captured a figure
-//       use <- bool.guard(when: last_move_captured_a_figure, return: False)
-
-//       let last_move_moved_a_pawn = case previous_move {
-//         // Panics are ok here because the previous move should always be a PlayerMovesFigure
-//         PlayerForfeits -> panic as critical_error_text
-//         PlayersAgreeToDraw -> panic as critical_error_text
-//         PlayerMovesFigure(previous_move) ->
-//           case previous_move {
-//             EnPassant(_, _) -> True
-//             PawnPromotion(_, _, _) -> True
-//             LongCastle -> False
-//             ShortCastle -> False
-//             StandardFigureMove(from, _) ->
-//               case board_get(previous_game.board, from) {
-//                 Some(#(Pawn, _)) -> True
-//                 _ -> False
-//               }
-//           }
-//       }
-
-//       // early return if the last move moved a pawn
-//       use <- bool.guard(when: last_move_moved_a_pawn, return: False)
-
-//       is_fifty_move_rule_loop(
-//         current_board: previous_game.board,
-//         previous_state: previous_game.previous_state,
-//         counter: counter + 1,
-//       )
-//     }
-//   }
-// }
+// Checks whether the fifty move rule is satisfied.
+fn is_fifty_move_rule(game game: OngoingGameState) -> Bool {
+  // We check for 100 as the fifty move rule refers to white+black move combos
+  game.fifty_move_rule_counter >= 100
+}
 
 /// Retrieve all legal moves of all figures of `moving_player`
 fn get_all_unchecked_moves(
@@ -1335,6 +1283,23 @@ fn do_move(
   // Dear lord forgive me for this monster case, but idk how to do it better
   case move {
     StandardFigureMove(from:, to:) -> {
+      let fifty_move_rule_counter = {
+        // Reset counter on pawm move
+        let is_pawn = case dict.get(game.board.other_figures, from) {
+          Ok(#(Pawn, _)) -> True
+          _ -> False
+        }
+        use <- bool.guard(when: is_pawn, return: 0)
+        // Reset counter on capture
+        let is_capture = case dict.get(game.board.other_figures, to) {
+          Ok(_) -> True
+          Error(_) -> False
+        }
+        use <- bool.guard(when: is_capture, return: 0)
+
+        game.fifty_move_rule_counter + 1
+      }
+
       case board {
         // Move white king
         Board(white_king:, black_king:, other_figures:) if white_king == from ->
@@ -1343,6 +1308,7 @@ fn do_move(
             en_passant_possible: None,
             short_castle_disqualified_white: True,
             long_castle_disqualified_white: True,
+            fifty_move_rule_counter:,
             board: Board(
               white_king: to,
               black_king:,
@@ -1357,6 +1323,7 @@ fn do_move(
             en_passant_possible: None,
             short_castle_disqualified_black: True,
             long_castle_disqualified_black: True,
+            fifty_move_rule_counter:,
             board: Board(
               white_king:,
               black_king: to,
@@ -1402,6 +1369,7 @@ fn do_move(
             long_castle_disqualified_white:,
             short_castle_disqualified_black:,
             long_castle_disqualified_black:,
+            fifty_move_rule_counter:,
             board: Board(
               white_king:,
               black_king:,
@@ -1420,6 +1388,7 @@ fn do_move(
       OngoingGameState(
         ..game,
         en_passant_possible: None,
+        fifty_move_rule_counter: 0,
         board: Board(
           white_king: board.white_king,
           black_king: board.black_king,
@@ -1444,6 +1413,7 @@ fn do_move(
       OngoingGameState(
         ..game,
         en_passant_possible: None,
+        fifty_move_rule_counter: 0,
         board: Board(
           white_king: board.white_king,
           black_king: board.black_king,

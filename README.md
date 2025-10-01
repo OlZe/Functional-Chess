@@ -75,7 +75,7 @@ pub fn main() {
   - [x] by [stalemate](https://www.chess.com/terms/draw-chess#stalemate)
   - [x] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
   - [ ] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
-  - [ ] by the [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule)
+  - [x] by the [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule)
 
 > <sup>1</sup> The rule of achieving a [draw by a dead position](https://www.chess.com/terms/draw-chess#dead-position) is omitted as implementation is quite complex and could have significant impact on performance.
 > 
