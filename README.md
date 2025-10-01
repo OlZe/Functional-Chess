@@ -26,29 +26,38 @@ pub fn main() {
   // Create a new game in standard chess starting position
   let game = chess.new_game()
 
-  echo game.status
+  echo chess.get_status(game)
   // => GameOngoing(next_player: White)
 
   // White gets all legal moves of pawn on E2
-  let _ = echo chess.get_moves(game, coord.e2)
-  // => [StandardMoveAvailable(E3), StandardMoveAvailable(E4)]
+  echo chess.get_moves(game, coord.e2)
+  // => E3 and E4
 
   // White moves pawn E2 to E4
-  let move = chess.StandardMove(from: coord.e2, to: coord.e4)
+  let move =
+    chess.PlayerMovesFigure(chess.StandardFigureMove(
+      from: coord.e2,
+      to: coord.e4,
+    ))
   let assert Ok(game) = chess.player_move(game, move)
 
   // Now it's black's turn
-  echo game.status
+  echo chess.get_status(game)
   // => GameOngoing(next_player: Black)
 
   // Black tries to illegally move king to E5
-  let illegal_move = chess.StandardMove(from: coord.e8, to: coord.e5)
+  let illegal_move =
+    chess.PlayerMovesFigure(chess.StandardFigureMove(
+      from: coord.e8,
+      to: coord.e5,
+    ))
   echo chess.player_move(game, illegal_move)
   // => Error(PlayerMoveIsIllegal)
 
   // Black is frustrated and forfeits the game
-  let assert Ok(game) = chess.forfeit(game)
-  echo game.status
+  let forfeit_move = chess.PlayerForfeits
+  let assert Ok(game) = chess.player_move(game, forfeit_move)
+  echo chess.get_status(game)
   // => GameEnded(Victory(winner: White, by: Forfeit))
 }
 ```
@@ -70,7 +79,7 @@ pub fn main() {
 - [x] Win/Lose the game
   - [x] by checkmate
   - [x] by player forfeit
-- [ ] Draw the game<sup>1</sup>
+- [x] Draw the game<sup>1</sup>
   - [x] by mutual player agreement
   - [x] by [stalemate](https://www.chess.com/terms/draw-chess#stalemate)
   - [x] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
