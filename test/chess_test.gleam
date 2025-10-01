@@ -4,6 +4,7 @@ import chess/coordinates as coord
 import chess/text_renderer as r
 import gleam/dict
 import gleam/list
+import gleam/set
 import gleam/string
 import gleeunit
 
@@ -19,6 +20,35 @@ pub fn new_game_test() {
   )
 }
 
+pub fn new_custom_game_errors_test() {
+  let pawns_on_final_rank =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.b8, #(Pawn, White)),
+        #(coord.a1, #(Pawn, Black)),
+        #(coord.c1, #(Pawn, Black)),
+      ]),
+    )
+
+  assert c.new_custom_game(pawns_on_final_rank, White)
+    == Error(c.PawnsOnFinalRank(set.from_list([coord.b8, coord.a1, coord.c1])))
+
+  let enemy_already_in_check =
+    c.Board(
+      white_king: coord.e1,
+      black_king: coord.e8,
+      other_figures: dict.from_list([
+        #(coord.e3, #(Rook, White)),
+        #(coord.a4, #(Pawn, Black)),
+      ]),
+    )
+
+  assert c.new_custom_game(enemy_already_in_check, White)
+    == Error(c.EnemyIsInCheck)
+}
+
 pub fn pawn_can_move_as_white_test() {
   let board =
     c.Board(
@@ -30,7 +60,7 @@ pub fn pawn_can_move_as_white_test() {
         #(coord.c3, #(Pawn, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.b2
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -52,7 +82,7 @@ pub fn pawn_can_promote_as_white_test() {
         #(coord.c8, #(Rook, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.b7
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -74,7 +104,7 @@ pub fn pawn_cannot_promote_as_white_test() {
         #(coord.b8, #(Knight, White)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.b7
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -94,7 +124,7 @@ pub fn pawn_cannot_move_as_white_test() {
         #(coord.a2, #(Pawn, White)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.b1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -113,7 +143,7 @@ pub fn pawn_can_en_passant_left_as_white_test() {
         #(coord.b5, #(Pawn, White)),
       ]),
     )
-  let before = c.new_custom_game(board, Black)
+  let assert Ok(before) = c.new_custom_game(board, Black)
 
   // Make a double pawn move as black to allow en passant
   let assert Ok(after) =
@@ -143,7 +173,7 @@ pub fn pawn_can_en_passant_right_as_white_test() {
         #(coord.b5, #(Pawn, White)),
       ]),
     )
-  let before = c.new_custom_game(board, Black)
+  let assert Ok(before) = c.new_custom_game(board, Black)
 
   // Make a double pawn move as black to allow en passant
   let assert Ok(after) =
@@ -173,7 +203,7 @@ pub fn pawn_cannot_en_passant_left_as_white_test() {
         #(coord.b5, #(Pawn, White)),
       ]),
     )
-  let before = c.new_custom_game(board, Black)
+  let assert Ok(before) = c.new_custom_game(board, Black)
 
   // Make a single-step pawn move as black
   let assert Ok(after) =
@@ -203,7 +233,7 @@ pub fn pawn_cannot_en_passant_right_as_white_test() {
         #(coord.b5, #(Pawn, White)),
       ]),
     )
-  let before = c.new_custom_game(board, Black)
+  let assert Ok(before) = c.new_custom_game(board, Black)
 
   // Make a single-step pawn move as black
   let assert Ok(after) =
@@ -234,7 +264,7 @@ pub fn pawn_can_move_as_black_test() {
         #(coord.c6, #(Pawn, White)),
       ]),
     )
-  let game = c.new_custom_game(board, Black)
+  let assert Ok(game) = c.new_custom_game(board, Black)
   let selected_figure = coord.b7
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -256,7 +286,7 @@ pub fn pawn_cannot_move_as_black_test() {
         #(coord.a4, #(Pawn, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, Black)
+  let assert Ok(game) = c.new_custom_game(board, Black)
   let selected_figure = coord.b5
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -276,7 +306,7 @@ pub fn pawn_can_promote_as_black_test() {
         #(coord.c1, #(Rook, White)),
       ]),
     )
-  let game = c.new_custom_game(board, Black)
+  let assert Ok(game) = c.new_custom_game(board, Black)
   let selected_figure = coord.b2
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -298,7 +328,7 @@ pub fn pawn_cannot_promote_as_black_test() {
         #(coord.b1, #(Knight, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, Black)
+  let assert Ok(game) = c.new_custom_game(board, Black)
   let selected_figure = coord.b2
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -317,7 +347,7 @@ pub fn pawn_can_en_passant_left_as_black_test() {
         #(coord.b4, #(Pawn, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
 
   // Make a double pawn move as white to allow en passant
   let assert Ok(after) =
@@ -347,7 +377,7 @@ pub fn pawn_can_en_passant_right_as_black_test() {
         #(coord.b4, #(Pawn, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
 
   // Make a double pawn move as black to allow en passant
   let assert Ok(after) =
@@ -377,7 +407,7 @@ pub fn pawn_cannot_en_passant_left_as_black_test() {
         #(coord.b4, #(Pawn, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
 
   // Make a single-step pawn move as white
   let assert Ok(after) =
@@ -407,7 +437,7 @@ pub fn pawn_cannot_en_passant_right_as_black_test() {
         #(coord.b4, #(Pawn, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
 
   // Make a single-step pawn move as white
   let assert Ok(after) =
@@ -437,7 +467,7 @@ pub fn pawn_cannot_doublemove() {
         #(coord.a3, #(Pawn, White)),
       ]),
     )
-  let game1 = c.new_custom_game(board1, White)
+  let assert Ok(game1) = c.new_custom_game(board1, White)
   let selected_figure1 = coord.a3
   let assert Ok(moves1) = c.get_moves(game1, selected_figure1)
   game1
@@ -454,7 +484,7 @@ pub fn pawn_cannot_doublemove() {
         #(coord.a4, #(Pawn, White)),
       ]),
     )
-  let game2 = c.new_custom_game(board2, White)
+  let assert Ok(game2) = c.new_custom_game(board2, White)
   let selected_figure2 = coord.a3
   let assert Ok(moves2) = c.get_moves(game2, selected_figure2)
   game2
@@ -473,7 +503,7 @@ pub fn pawn_cannot_doublemove() {
         #(coord.a5, #(Pawn, White)),
       ]),
     )
-  let game3 = c.new_custom_game(board3, White)
+  let assert Ok(game3) = c.new_custom_game(board3, White)
   let selected_figure3 = coord.a3
   let assert Ok(moves3) = c.get_moves(game3, selected_figure3)
   game3
@@ -490,7 +520,7 @@ pub fn king_can_move_test() {
         #(coord.a3, #(Pawn, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.b2
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -510,7 +540,7 @@ pub fn king_cannot_move_test() {
         #(coord.b1, #(Pawn, White)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -530,7 +560,7 @@ pub fn king_can_castle_as_white_test() {
         #(coord.e7, #(Pawn, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.e1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -550,7 +580,7 @@ pub fn king_cannot_castle_out_of_check_as_white_test() {
         #(coord.e7, #(Rook, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.e1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -571,7 +601,7 @@ pub fn king_cannot_castle_through_check_as_white_test() {
         #(coord.f7, #(Rook, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.e1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -592,7 +622,7 @@ pub fn king_cannot_castle_into_check_as_white_test() {
         #(coord.g7, #(Rook, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.e1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -612,7 +642,7 @@ pub fn king_cannot_castle_after_king_moved_test() {
         #(coord.e7, #(Pawn, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let assert Ok(after_king_moved) =
     c.player_move(
       before,
@@ -650,7 +680,7 @@ pub fn king_cannot_castle_after_rooks_moved_test() {
         #(coord.e7, #(Pawn, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let assert Ok(after_rook1_moved) =
     c.player_move(
       before,
@@ -703,7 +733,7 @@ pub fn king_can_castle_as_black_test() {
         #(coord.e2, #(Pawn, White)),
       ]),
     )
-  let game = c.new_custom_game(board, Black)
+  let assert Ok(game) = c.new_custom_game(board, Black)
   let selected_figure = coord.e8
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -723,7 +753,7 @@ pub fn king_cannot_castle_out_of_check_as_black_test() {
         #(coord.e2, #(Rook, White)),
       ]),
     )
-  let game = c.new_custom_game(board, Black)
+  let assert Ok(game) = c.new_custom_game(board, Black)
   let selected_figure = coord.e8
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -744,7 +774,7 @@ pub fn king_cannot_castle_through_check_as_black_test() {
         #(coord.f2, #(Rook, White)),
       ]),
     )
-  let game = c.new_custom_game(board, Black)
+  let assert Ok(game) = c.new_custom_game(board, Black)
   let selected_figure = coord.e8
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -765,7 +795,7 @@ pub fn king_cannot_castle_into_check_as_black_test() {
         #(coord.g2, #(Rook, White)),
       ]),
     )
-  let game = c.new_custom_game(board, Black)
+  let assert Ok(game) = c.new_custom_game(board, Black)
   let selected_figure = coord.e8
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -781,7 +811,7 @@ pub fn knight_can_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.d4, #(Knight, White))]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.d4
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -801,7 +831,7 @@ pub fn knight_cannot_move_test() {
         #(coord.c2, #(Pawn, White)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -817,7 +847,7 @@ pub fn rook_can_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.d4, #(Rook, White))]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.d4
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -834,10 +864,10 @@ pub fn rook_cannot_move_test() {
       other_figures: dict.from_list([
         #(coord.a1, #(Rook, White)),
         #(coord.a3, #(Pawn, White)),
-        #(coord.c1, #(Pawn, Black)),
+        #(coord.c1, #(Bishop, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -853,7 +883,7 @@ pub fn bishop_can_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.d4, #(Bishop, White))]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.d4
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -873,7 +903,7 @@ pub fn bishop_cannot_move_test() {
         #(coord.e3, #(Pawn, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.c1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -889,7 +919,7 @@ pub fn queen_can_move_test() {
       black_king: coord.e8,
       other_figures: dict.from_list([#(coord.d4, #(Queen, White))]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.d4
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -907,10 +937,10 @@ pub fn queen_cannot_move_test() {
         #(coord.a1, #(Queen, White)),
         #(coord.a2, #(Pawn, White)),
         #(coord.b2, #(Pawn, White)),
-        #(coord.b1, #(Pawn, Black)),
+        #(coord.b1, #(Bishop, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -929,7 +959,7 @@ pub fn get_moves_doesnt_stay_in_check_test() {
         #(coord.b3, #(Rook, White)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
 
   let selected_king = coord.a1
   let selected_rook = coord.b3
@@ -955,7 +985,7 @@ pub fn standard_move_test() {
         #(coord.e7, #(Pawn, White)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a1, coord.b2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -972,7 +1002,7 @@ pub fn pawn_promotion_test() {
         #(coord.e7, #(Pawn, White)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.PawnPromotion(coord.e7, coord.e8, Queen))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -990,7 +1020,7 @@ pub fn en_passant_test() {
         #(coord.b5, #(Pawn, White)),
       ]),
     )
-  let start = c.new_custom_game(board, Black)
+  let assert Ok(start) = c.new_custom_game(board, Black)
 
   // Black double moves up to allow en passant
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a7, coord.a5))
@@ -1016,7 +1046,7 @@ pub fn player_cannot_check_himself_test() {
         #(coord.b3, #(Pawn, Black)),
       ]),
     )
-  let game = c.new_custom_game(board, White)
+  let assert Ok(game) = c.new_custom_game(board, White)
   let selected_figure = coord.a1
   let assert Ok(moves) = c.get_moves(game, selected_figure)
 
@@ -1035,7 +1065,7 @@ pub fn stalemate_test() {
         #(coord.h5, #(Rook, White)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.h5, coord.b5))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -1053,7 +1083,7 @@ pub fn checkmate_test() {
         #(coord.a6, #(Rook, White)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a6, coord.a8))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -1088,7 +1118,7 @@ pub fn insufficient_material_by_king_vs_king_test() {
         #(coord.e2, #(Pawn, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -1108,7 +1138,7 @@ pub fn insufficient_material_by_king_vs_king_and_bishop_test() {
         #(coord.f2, #(Bishop, White)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -1128,7 +1158,7 @@ pub fn insufficient_material_by_king_vs_king_and_knight_test() {
         #(coord.f2, #(Knight, White)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -1149,7 +1179,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_test() {
         #(coord.f6, #(Bishop, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -1170,7 +1200,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
         #(coord.g6, #(Bishop, Black)),
       ]),
     )
-  let before = c.new_custom_game(board, White)
+  let assert Ok(before) = c.new_custom_game(board, White)
   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e1, coord.e2))
   let assert Ok(after) = c.player_move(before, move)
 
@@ -1181,7 +1211,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
 }
 
 pub fn threefold_repetition_test() {
-  let start = {
+  let assert Ok(start) = {
     let board =
       c.Board(
         white_king: coord.e1,
@@ -1260,7 +1290,7 @@ pub fn threefold_repetition_test() {
 }
 
 pub fn threefold_repetition_ignores_positions_with_special_moves_test() {
-  let start = {
+  let assert Ok(start) = {
     let board =
       c.Board(
         white_king: coord.e1,
@@ -1348,7 +1378,7 @@ pub fn threefold_repetition_ignores_positions_with_special_moves_test() {
 }
 
 pub fn fifty_move_rule_test() {
-  let start = {
+  let assert Ok(start) = {
     let board =
       c.Board(
         white_king: coord.a1,
@@ -1439,7 +1469,7 @@ pub fn fifty_move_rule_test() {
 }
 
 pub fn fifty_move_rule_disqualified_by_pawn_move_test() {
-  let start = {
+  let assert Ok(start) = {
     let board =
       c.Board(
         white_king: coord.a1,
@@ -1532,7 +1562,7 @@ pub fn fifty_move_rule_disqualified_by_pawn_move_test() {
 }
 
 pub fn fifty_move_rule_disqualified_by_capture_test() {
-  let start = {
+  let assert Ok(start) = {
     let board =
       c.Board(
         white_king: coord.a1,

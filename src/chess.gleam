@@ -224,18 +224,67 @@ pub fn get_status(game game: GameState) -> GameStatus {
 
 /// Creates a new game in the standard starting chess position.
 pub fn new_game() -> GameState {
-  new_custom_game(board_new(), White)
+  GameState(
+    internal: OngoingGameState(
+      board: board_new(),
+      moving_player: White,
+      en_passant_possible: None,
+      short_castle_disqualified_white: False,
+      long_castle_disqualified_white: False,
+      short_castle_disqualified_black: False,
+      long_castle_disqualified_black: False,
+      fifty_move_rule_counter: 0,
+      threefold_repetition_counter: counter.new(),
+    ),
+    status: GameOngoing(White),
+  )
+}
+
+/// Represents an error returned by `new_custom_game`.
+pub type NewCustomGameError {
+  /// Tried to create a game, where pawns are on the final row.
+  /// 
+  /// This is illegal, as these pawns would have promoted and are now stuck instead.
+  /// 
+  /// See `pawns` for a list of coordinates pointing to the culprits.
+  PawnsOnFinalRank(pawns: set.Set(Coordinate))
+
+  /// Tried to create a game, where the first-moving player is already checking
+  /// the enemy king.
+  /// 
+  /// This is illegal as it would allow the first-moving player to "capture" the king.
+  EnemyIsInCheck
 }
 
 /// Create a new game in the given position.
 /// 
 /// `first_player` decides which player goes first.
 /// 
-/// TODO: Add evaluation to see if the given position is legal.
+/// Allows for castling if kings and rooks are in their standard positions.
 pub fn new_custom_game(
   board board: Board,
   first_player player: Player,
-) -> GameState {
+) -> Result(GameState, NewCustomGameError) {
+  // Check for un-promoted pawns on final ranks
+  let bad_pawns =
+    [FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH]
+    // Get pawn pawn coords
+    |> list.flat_map(fn(file) {
+      [#(Coordinate(file, Row8), White), #(Coordinate(file, Row1), Black)]
+    })
+    // Check board for bad pawn coords
+    |> list.filter(fn(coord_and_player) {
+      board_get(board, coord_and_player.0) == Some(#(Pawn, coord_and_player.1))
+    })
+    |> list.map(fn(coord_and_player) { coord_and_player.0 })
+    |> set.from_list()
+
+  use <- bool.guard(
+    when: !set.is_empty(bad_pawns),
+    return: Error(PawnsOnFinalRank(bad_pawns)),
+  )
+
+  // Check castling rights
   let #(white_short_castle, white_long_castle) = {
     use <- bool.guard(
       when: board.white_king != Coordinate(FileE, Row1),
@@ -256,20 +305,32 @@ pub fn new_custom_game(
     #(shrt, long)
   }
 
-  GameState(
-    internal: OngoingGameState(
-      board:,
-      moving_player: player,
-      en_passant_possible: None,
-      short_castle_disqualified_white: !white_short_castle,
-      long_castle_disqualified_white: !white_long_castle,
-      short_castle_disqualified_black: !black_short_castle,
-      long_castle_disqualified_black: !black_long_castle,
-      fifty_move_rule_counter: 0,
-      threefold_repetition_counter: counter.new(),
-    ),
-    status: GameOngoing(player),
-  )
+  // Build game
+  let game =
+    GameState(
+      internal: OngoingGameState(
+        board:,
+        moving_player: player,
+        en_passant_possible: None,
+        short_castle_disqualified_white: !white_short_castle,
+        long_castle_disqualified_white: !white_long_castle,
+        short_castle_disqualified_black: !black_short_castle,
+        long_castle_disqualified_black: !black_long_castle,
+        fifty_move_rule_counter: 0,
+        threefold_repetition_counter: counter.new(),
+      ),
+      status: GameOngoing(player),
+    )
+
+  // Check if enemy is in check
+  let enemy_is_in_check =
+    is_in_check(
+      OngoingGameState(..game.internal, moving_player: player_flip(player)),
+    )
+
+  use <- bool.guard(when: enemy_is_in_check, return: Error(EnemyIsInCheck))
+
+  Ok(game)
 }
 
 /// Represents an error returned by [`player_move`](#player_move).
