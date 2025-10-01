@@ -945,40 +945,6 @@ pub fn get_moves_doesnt_stay_in_check_test() {
   |> birdie.snap(title: "Rook only has moves that don't leave king in check.")
 }
 
-// TODO:
-// pub fn get_moves_errors_test() {
-//   let board =
-//     c.Board(
-//       white_king: coord.a1,
-//       black_king: coord.e8,
-//       other_figures: dict.new(),
-//     )
-
-//   // Game is already won/lost
-//   let game1 =
-//     c.GameState(
-//       board,
-//       c.GameEnded(c.Victory(winner: White, by: c.Checkmated)),
-//       None,
-//     )
-//   assert c.get_moves(game1, coord.a1) == Error(c.GetMovesWhileGameAlreadyOver)
-
-//   // Game is already drawn
-//   let game2 =
-//     c.GameState(board, c.GameEnded(c.Draw(by: c.MutualAgreement)), None)
-//   assert c.get_moves(game2, coord.a1) == Error(c.GetMovesWhileGameAlreadyOver)
-
-//   // Select figure which doesn't exist
-//   let game4 = c.new_custom_game(board, White)
-//   assert c.get_moves(game4, coord.b2)
-//     == Error(c.GetMovesWithInvalidFigure(c.SelectedFigureDoesntExist))
-
-//   // Select figure which isn't friendly
-//   let game5 = c.new_custom_game(board, Black)
-//   assert c.get_moves(game5, coord.a1)
-//     == Error(c.GetMovesWithInvalidFigure(c.SelectedFigureIsNotFriendly))
-// }
-
 pub fn standard_move_test() {
   let board =
     c.Board(
@@ -1039,52 +1005,6 @@ pub fn en_passant_test() {
     "White en passant's from B5 to A6 and captures the black pawn on A5",
   )
 }
-
-// TODO:
-// pub fn player_move_errors_test() {
-//   let board =
-//     c.Board(
-//       white_king: coord.a1,
-//       black_king: coord.e8,
-//       other_figures: dict.new(),
-//     )
-//   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.a1, coord.a2))
-
-//   // Game is already won
-//   let game1 =
-//     c.GameState(
-//       board,
-//       c.GameEnded(c.Victory(winner: White, by: c.Checkmated)),
-//       None,
-//     )
-//   assert c.player_move(game1, move) == Error(c.PlayerMoveWhileGameAlreadyOver)
-
-//   // Game is already drawn
-//   let game2 =
-//     c.GameState(board, c.GameEnded(c.Draw(by: c.MutualAgreement)), None)
-//   assert c.player_move(game2, move) == Error(c.PlayerMoveWhileGameAlreadyOver)
-// }
-
-// TODO:
-// pub fn player_move_keeps_previous_state_test() {
-//   let board =
-//     c.Board(
-//       white_king: coord.a1,
-//       black_king: coord.a8,
-//       other_figures: dict.from_list([
-//         #(coord.e4, #(Pawn, White)),
-//       ]),
-//     )
-//   let before = c.new_custom_game(board, White)
-//   let move = c.PlayerMovesFigure(c.StandardFigureMove(coord.e4, coord.e5))
-//   let assert Ok(after) = c.player_move(before, move)
-
-//   let assert Some(#(previous_move_from_after, previous_state_from_after)) =
-//     after.previous_state
-
-//   assert previous_move_from_after == move
-//   assert previous_state_from_after == before
-// }
 
 pub fn player_cannot_check_himself_test() {
   let board =
