@@ -1225,287 +1225,328 @@ fn do_move(
   game game: OngoingGameState,
   move move: FigureMove,
 ) -> OngoingGameState {
+  case move {
+    StandardFigureMove(from:, to:) ->
+      do_move_standard_figure_move(game:, from:, to:)
+    PawnPromotion(from:, to:, new_figure:) ->
+      do_move_pawn_promotion(game:, from:, to:, new_figure:)
+    EnPassant(from:, to:) -> do_move_en_passant(game:, from:, to:)
+    ShortCastle -> do_move_short_castle(game:)
+    LongCastle -> do_move_long_castle(game:)
+  }
+}
+
+fn do_move_standard_figure_move(
+  game game: OngoingGameState,
+  from from: Coordinate,
+  to to: Coordinate,
+) -> OngoingGameState {
+  let is_capture = case dict.get(game.board.other_figures, to) {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+
+  let is_pawn = case dict.get(game.board.other_figures, from) {
+    Ok(#(Pawn, _)) -> True
+    _ -> False
+  }
+
+  // Update fifty move rule counter
+  let fifty_move_rule_counter = {
+    // Pawn moves and captures reset the fifty move rule as per definition
+    use <- bool.guard(when: is_pawn, return: 0)
+    use <- bool.guard(when: is_capture, return: 0)
+
+    // Otherwise increase counter
+    game.fifty_move_rule_counter + 1
+  }
+
+  // Update threefold repetition counter
+  let threefold_repetition_counter = {
+    // Captures reset threefold repetition, as un-capturing is impossible
+    use <- bool.guard(when: is_capture, return: counter.new())
+    // Pawn moves reset threefold repetition, as moving the pawn back is impossible
+    use <- bool.guard(when: is_pawn, return: counter.new())
+
+    game.threefold_repetition_counter
+    |> counter.increment(get_threefold_repetition_position_from_game(game:))
+  }
+
+  // Move the figure
+  case game.board {
+    // Move white king
+    Board(white_king:, black_king:, other_figures:) if white_king == from ->
+      OngoingGameState(
+        ..game,
+        en_passant_possible: None,
+        // Disqualify castling
+        short_castle_disqualified_white: True,
+        long_castle_disqualified_white: True,
+        fifty_move_rule_counter:,
+        threefold_repetition_counter:,
+        board: Board(
+          white_king: to,
+          black_king:,
+          other_figures: dict.delete(other_figures, to),
+        ),
+      )
+
+    // Move black king
+    Board(white_king:, black_king:, other_figures:) if black_king == from ->
+      OngoingGameState(
+        ..game,
+        en_passant_possible: None,
+        // Disqualify castling
+        short_castle_disqualified_black: True,
+        long_castle_disqualified_black: True,
+        threefold_repetition_counter:,
+        fifty_move_rule_counter:,
+        board: Board(
+          white_king:,
+          black_king: to,
+          other_figures: dict.delete(other_figures, to),
+        ),
+      )
+
+    // Move another piece
+    Board(white_king:, black_king:, other_figures:) -> {
+      let assert Ok(moving_figure) = dict.get(other_figures, from)
+        as critical_error_text
+
+      // Set en passant flag if this is a double pawn move
+      let allows_en_passant = case moving_figure {
+        #(Pawn, White)
+          if from.row == Row2 && to.row == Row4 && from.file == to.file
+        -> Some(to.file)
+        #(Pawn, Black)
+          if from.row == Row7 && to.row == Row5 && from.file == to.file
+        -> Some(to.file)
+        #(_, _) -> None
+      }
+
+      // Disqualify castling if not disqualified already and moving from one
+      // of the rook's home squares
+      let short_castle_disqualified_white =
+        game.short_castle_disqualified_white || from == Coordinate(FileH, Row1)
+
+      let long_castle_disqualified_white =
+        game.long_castle_disqualified_white || from == Coordinate(FileA, Row1)
+
+      let short_castle_disqualified_black =
+        game.short_castle_disqualified_black || from == Coordinate(FileH, Row8)
+
+      let long_castle_disqualified_black =
+        game.long_castle_disqualified_black || from == Coordinate(FileA, Row8)
+
+      OngoingGameState(
+        moving_player: game.moving_player,
+        en_passant_possible: allows_en_passant,
+        short_castle_disqualified_white:,
+        long_castle_disqualified_white:,
+        short_castle_disqualified_black:,
+        long_castle_disqualified_black:,
+        threefold_repetition_counter:,
+        fifty_move_rule_counter:,
+        board: Board(
+          white_king:,
+          black_king:,
+          other_figures: other_figures
+            |> dict.delete(from)
+            |> dict.insert(to, moving_figure),
+        ),
+      )
+    }
+  }
+}
+
+fn do_move_pawn_promotion(
+  game game: OngoingGameState,
+  from from: Coordinate,
+  to to: Coordinate,
+  new_figure new_figure: Figure,
+) -> OngoingGameState {
   let board = game.board
   let moving_player = game.moving_player
 
-  // Dear lord forgive me for this monster case, but it's so hard to refactor.
-  case move {
-    StandardFigureMove(from:, to:) -> {
-      let is_capture = case dict.get(game.board.other_figures, to) {
-        Ok(_) -> True
-        Error(_) -> False
-      }
+  assert board_get(board, from) == Some(#(Pawn, moving_player))
+    as critical_error_text
 
-      // Reset counter on pawm move
-      let is_pawn = case dict.get(game.board.other_figures, from) {
-        Ok(#(Pawn, _)) -> True
-        _ -> False
-      }
+  OngoingGameState(
+    ..game,
+    en_passant_possible: None,
+    // Reset fifty move rule counter as per definition
+    fifty_move_rule_counter: 0,
+    // Reset threefold rep counter, as undoing a pawn move is impossible
+    threefold_repetition_counter: counter.new(),
+    board: Board(
+      white_king: board.white_king,
+      black_king: board.black_king,
+      other_figures: board.other_figures
+        |> dict.delete(from)
+        |> dict.insert(to, #(new_figure, moving_player)),
+    ),
+  )
+}
 
-      // Update fifty move rule counter
-      let fifty_move_rule_counter = {
-        // Pawn moves and captures reset the fifty move rule as per definition
-        use <- bool.guard(when: is_pawn, return: 0)
-        use <- bool.guard(when: is_capture, return: 0)
+fn do_move_en_passant(
+  game game: OngoingGameState,
+  from from: Coordinate,
+  to to: Coordinate,
+) -> OngoingGameState {
+  let board = game.board
+  let moving_player = game.moving_player
+  let capturing_square = Coordinate(file: to.file, row: from.row)
 
-        // Otherwise increase counter
-        game.fifty_move_rule_counter + 1
-      }
+  assert board_get(board, from) == Some(#(Pawn, moving_player))
+    as critical_error_text
 
-      // Update threefold repetition counter
-      let threefold_repetition_counter = {
-        // Caputres reset threefold repetition, as un-capturing is impossible
-        use <- bool.guard(when: is_capture, return: counter.new())
-        // Pawn moves reset threefold repetition, as moving the pawn back is impossible
-        use <- bool.guard(when: is_pawn, return: counter.new())
+  assert board_get(board, capturing_square)
+    == Some(#(Pawn, player_flip(moving_player)))
+    as critical_error_text
 
-        game.threefold_repetition_counter
-        |> counter.increment(get_threefold_repetition_position_from_game(game:))
-      }
+  assert board_get(board, to) == None as critical_error_text
 
-      case board {
-        // Move white king
-        Board(white_king:, black_king:, other_figures:) if white_king == from ->
-          OngoingGameState(
-            ..game,
-            en_passant_possible: None,
-            short_castle_disqualified_white: True,
-            long_castle_disqualified_white: True,
-            fifty_move_rule_counter:,
-            threefold_repetition_counter:,
-            board: Board(
-              white_king: to,
-              black_king:,
-              other_figures: dict.delete(other_figures, to),
-            ),
-          )
+  OngoingGameState(
+    ..game,
+    en_passant_possible: None,
+    // Reset fifty move rule counter as per definition
+    fifty_move_rule_counter: 0,
+    // Reset threefold rep counter, as undoing a pawn move is impossible
+    threefold_repetition_counter: counter.new(),
+    board: Board(
+      white_king: board.white_king,
+      black_king: board.black_king,
+      other_figures: board.other_figures
+        |> dict.delete(from)
+        |> dict.delete(capturing_square)
+        |> dict.insert(to, #(Pawn, moving_player)),
+    ),
+  )
+}
 
-        // Move black king
-        Board(white_king:, black_king:, other_figures:) if black_king == from ->
-          OngoingGameState(
-            ..game,
-            en_passant_possible: None,
-            short_castle_disqualified_black: True,
-            long_castle_disqualified_black: True,
-            threefold_repetition_counter:,
-            fifty_move_rule_counter:,
-            board: Board(
-              white_king:,
-              black_king: to,
-              other_figures: dict.delete(other_figures, to),
-            ),
-          )
+fn do_move_short_castle(game game: OngoingGameState) -> OngoingGameState {
+  let board = game.board
+  let moving_player = game.moving_player
 
-        // Move another piece
-        Board(white_king:, black_king:, other_figures:) -> {
-          let assert Ok(moving_figure) = dict.get(other_figures, from)
-            as critical_error_text
+  let row = case moving_player {
+    White -> Row1
+    Black -> Row8
+  }
+  let king_from = Coordinate(FileE, row)
+  let king_to = Coordinate(FileG, row)
+  let rook_from = Coordinate(FileH, row)
+  let rook_to = Coordinate(FileF, row)
 
-          let allows_en_passant = case moving_figure {
-            #(Pawn, White)
-              if from.row == Row2 && to.row == Row4 && from.file == to.file
-            -> Some(to.file)
-            #(Pawn, Black)
-              if from.row == Row7 && to.row == Row5 && from.file == to.file
-            -> Some(to.file)
-            #(_, _) -> None
-          }
+  assert board_get(board, king_from) == Some(#(King, moving_player))
+    as critical_error_text
+  assert board_get(board, king_to) == None as critical_error_text
+  assert board_get(board, rook_from) == Some(#(Rook, moving_player))
+    as critical_error_text
+  assert board_get(board, rook_to) == None as critical_error_text
 
-          let short_castle_disqualified_white =
-            game.short_castle_disqualified_white
-            || from == Coordinate(FileH, Row1)
-
-          let long_castle_disqualified_white =
-            game.long_castle_disqualified_white
-            || from == Coordinate(FileA, Row1)
-
-          let short_castle_disqualified_black =
-            game.short_castle_disqualified_black
-            || from == Coordinate(FileH, Row8)
-
-          let long_castle_disqualified_black =
-            game.long_castle_disqualified_black
-            || from == Coordinate(FileA, Row8)
-
-          OngoingGameState(
-            moving_player:,
-            en_passant_possible: allows_en_passant,
-            short_castle_disqualified_white:,
-            long_castle_disqualified_white:,
-            short_castle_disqualified_black:,
-            long_castle_disqualified_black:,
-            threefold_repetition_counter:,
-            fifty_move_rule_counter:,
-            board: Board(
-              white_king:,
-              black_king:,
-              other_figures: other_figures
-                |> dict.delete(from)
-                |> dict.insert(to, moving_figure),
-            ),
-          )
-        }
-      }
-    }
-    PawnPromotion(from:, to:, new_figure:) -> {
-      assert board_get(board, from) == Some(#(Pawn, moving_player))
-        as critical_error_text
-
+  case moving_player {
+    White ->
       OngoingGameState(
         ..game,
         en_passant_possible: None,
-        fifty_move_rule_counter: 0,
-        threefold_repetition_counter: counter.new(),
+        // Disqualify white castling
+        short_castle_disqualified_white: True,
+        long_castle_disqualified_white: True,
+        threefold_repetition_counter: game.threefold_repetition_counter
+          |> counter.increment(get_threefold_repetition_position_from_game(
+            game:,
+          )),
         board: Board(
-          white_king: board.white_king,
+          white_king: king_to,
           black_king: board.black_king,
           other_figures: board.other_figures
-            |> dict.delete(from)
-            |> dict.insert(to, #(new_figure, moving_player)),
+            |> dict.delete(rook_from)
+            |> dict.insert(rook_to, #(Rook, moving_player)),
         ),
       )
-    }
-    EnPassant(from:, to:) -> {
-      let capturing_square = Coordinate(file: to.file, row: from.row)
-
-      assert board_get(board, from) == Some(#(Pawn, moving_player))
-        as critical_error_text
-
-      assert board_get(board, capturing_square)
-        == Some(#(Pawn, player_flip(moving_player)))
-        as critical_error_text
-
-      assert board_get(board, to) == None as critical_error_text
-
+    Black ->
       OngoingGameState(
         ..game,
         en_passant_possible: None,
-        fifty_move_rule_counter: 0,
-        threefold_repetition_counter: counter.new(),
+        // Disqualify black castling
+        short_castle_disqualified_black: True,
+        long_castle_disqualified_black: True,
+        threefold_repetition_counter: game.threefold_repetition_counter
+          |> counter.increment(get_threefold_repetition_position_from_game(
+            game:,
+          )),
         board: Board(
           white_king: board.white_king,
-          black_king: board.black_king,
+          black_king: king_to,
           other_figures: board.other_figures
-            |> dict.delete(from)
-            |> dict.delete(capturing_square)
-            |> dict.insert(to, #(Pawn, moving_player)),
+            |> dict.delete(rook_from)
+            |> dict.insert(rook_to, #(Rook, moving_player)),
         ),
       )
-    }
-    ShortCastle -> {
-      let row = case moving_player {
-        White -> Row1
-        Black -> Row8
-      }
-      let king_from = Coordinate(FileE, row)
-      let king_to = Coordinate(FileG, row)
-      let rook_from = Coordinate(FileH, row)
-      let rook_to = Coordinate(FileF, row)
+  }
+}
 
-      assert board_get(board, king_from) == Some(#(King, moving_player))
-        as critical_error_text
-      assert board_get(board, king_to) == None as critical_error_text
-      assert board_get(board, rook_from) == Some(#(Rook, moving_player))
-        as critical_error_text
-      assert board_get(board, rook_to) == None as critical_error_text
+fn do_move_long_castle(game game: OngoingGameState) -> OngoingGameState {
+  let board = game.board
+  let moving_player = game.moving_player
 
-      case moving_player {
-        White ->
-          OngoingGameState(
-            ..game,
-            en_passant_possible: None,
-            short_castle_disqualified_white: True,
-            long_castle_disqualified_white: True,
-            threefold_repetition_counter: game.threefold_repetition_counter
-              |> counter.increment(get_threefold_repetition_position_from_game(
-                game:,
-              )),
-            board: Board(
-              white_king: king_to,
-              black_king: board.black_king,
-              other_figures: board.other_figures
-                |> dict.delete(rook_from)
-                |> dict.insert(rook_to, #(Rook, moving_player)),
-            ),
-          )
-        Black ->
-          OngoingGameState(
-            ..game,
-            en_passant_possible: None,
-            short_castle_disqualified_black: True,
-            long_castle_disqualified_black: True,
-            threefold_repetition_counter: game.threefold_repetition_counter
-              |> counter.increment(get_threefold_repetition_position_from_game(
-                game:,
-              )),
-            board: Board(
-              white_king: board.white_king,
-              black_king: king_to,
-              other_figures: board.other_figures
-                |> dict.delete(rook_from)
-                |> dict.insert(rook_to, #(Rook, moving_player)),
-            ),
-          )
-      }
-    }
-    LongCastle -> {
-      let row = case moving_player {
-        White -> Row1
-        Black -> Row8
-      }
-      let king_from = Coordinate(FileE, row)
-      let king_to = Coordinate(FileC, row)
-      let rook_from = Coordinate(FileA, row)
-      let rook_to = Coordinate(FileD, row)
-      let inbetween = Coordinate(FileB, row)
+  let row = case moving_player {
+    White -> Row1
+    Black -> Row8
+  }
+  let king_from = Coordinate(FileE, row)
+  let king_to = Coordinate(FileC, row)
+  let rook_from = Coordinate(FileA, row)
+  let rook_to = Coordinate(FileD, row)
+  let inbetween = Coordinate(FileB, row)
 
-      assert board_get(board, king_from) == Some(#(King, moving_player))
-        as critical_error_text
-      assert board_get(board, king_to) == None as critical_error_text
-      assert board_get(board, rook_from) == Some(#(Rook, moving_player))
-        as critical_error_text
-      assert board_get(board, rook_to) == None as critical_error_text
-      assert board_get(board, inbetween) == None as critical_error_text
+  assert board_get(board, king_from) == Some(#(King, moving_player))
+    as critical_error_text
+  assert board_get(board, king_to) == None as critical_error_text
+  assert board_get(board, rook_from) == Some(#(Rook, moving_player))
+    as critical_error_text
+  assert board_get(board, rook_to) == None as critical_error_text
+  assert board_get(board, inbetween) == None as critical_error_text
 
-      case moving_player {
-        White ->
-          OngoingGameState(
-            ..game,
-            en_passant_possible: None,
-            short_castle_disqualified_white: True,
-            long_castle_disqualified_white: True,
-            threefold_repetition_counter: game.threefold_repetition_counter
-              |> counter.increment(get_threefold_repetition_position_from_game(
-                game:,
-              )),
-            board: Board(
-              white_king: king_to,
-              black_king: board.black_king,
-              other_figures: board.other_figures
-                |> dict.delete(rook_from)
-                |> dict.insert(rook_to, #(Rook, moving_player)),
-            ),
-          )
-        Black ->
-          OngoingGameState(
-            ..game,
-            en_passant_possible: None,
-            short_castle_disqualified_black: True,
-            long_castle_disqualified_black: True,
-            threefold_repetition_counter: game.threefold_repetition_counter
-              |> counter.increment(get_threefold_repetition_position_from_game(
-                game:,
-              )),
-            board: Board(
-              white_king: board.white_king,
-              black_king: king_to,
-              other_figures: board.other_figures
-                |> dict.delete(rook_from)
-                |> dict.insert(rook_to, #(Rook, moving_player)),
-            ),
-          )
-      }
-    }
+  case moving_player {
+    White ->
+      OngoingGameState(
+        ..game,
+        en_passant_possible: None,
+        // Disqualify white castling
+        short_castle_disqualified_white: True,
+        long_castle_disqualified_white: True,
+        threefold_repetition_counter: game.threefold_repetition_counter
+          |> counter.increment(get_threefold_repetition_position_from_game(
+            game:,
+          )),
+        board: Board(
+          white_king: king_to,
+          black_king: board.black_king,
+          other_figures: board.other_figures
+            |> dict.delete(rook_from)
+            |> dict.insert(rook_to, #(Rook, moving_player)),
+        ),
+      )
+    Black ->
+      OngoingGameState(
+        ..game,
+        en_passant_possible: None,
+        // Disqualify black castling
+        short_castle_disqualified_black: True,
+        long_castle_disqualified_black: True,
+        threefold_repetition_counter: game.threefold_repetition_counter
+          |> counter.increment(get_threefold_repetition_position_from_game(
+            game:,
+          )),
+        board: Board(
+          white_king: board.white_king,
+          black_king: king_to,
+          other_figures: board.other_figures
+            |> dict.delete(rook_from)
+            |> dict.insert(rook_to, #(Rook, moving_player)),
+        ),
+      )
   }
 }
 
