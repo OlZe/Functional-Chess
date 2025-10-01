@@ -1236,17 +1236,17 @@ fn do_move(
         Error(_) -> False
       }
 
+      // Reset counter on pawm move
+      let is_pawn = case dict.get(game.board.other_figures, from) {
+        Ok(#(Pawn, _)) -> True
+        _ -> False
+      }
+
       // Update fifty move rule counter
       let fifty_move_rule_counter = {
-        // Reset counter on capture
-        use <- bool.guard(when: is_capture, return: 0)
-
-        // Reset counter on pawm move
-        let is_pawn = case dict.get(game.board.other_figures, from) {
-          Ok(#(Pawn, _)) -> True
-          _ -> False
-        }
+        // Pawn moves and captures reset the fifty move rule as per definition
         use <- bool.guard(when: is_pawn, return: 0)
+        use <- bool.guard(when: is_capture, return: 0)
 
         // Otherwise increase counter
         game.fifty_move_rule_counter + 1
@@ -1254,8 +1254,10 @@ fn do_move(
 
       // Update threefold repetition counter
       let threefold_repetition_counter = {
-        // Reset counter on capture
+        // Caputres reset threefold repetition, as un-capturing is impossible
         use <- bool.guard(when: is_capture, return: counter.new())
+        // Pawn moves reset threefold repetition, as moving the pawn back is impossible
+        use <- bool.guard(when: is_pawn, return: counter.new())
 
         game.threefold_repetition_counter
         |> counter.increment(get_threefold_repetition_position_from_game(game:))
