@@ -346,7 +346,7 @@ pub fn new_custom_game(
 
   // Check if enemy is in check
   let enemy_is_in_check =
-    is_in_check(
+    is_in_check_internal(
       OngoingGameState(..game.internal, moving_player: player_flip(player)),
     )
 
@@ -397,10 +397,9 @@ pub fn player_move(
         PlayersAgreeToDraw ->
           Ok(GameState(..game, status: GameEnded(Draw(MutualAgreement))))
         PlayerMovesFigure(move) -> {
-          use #(new_internal_game, new_status) <- result.try(player_move_figure(
-            game: internal_game,
-            move:,
-          ))
+          use #(new_internal_game, new_status) <- result.try(
+            player_move_internal(game: internal_game, move:),
+          )
           Ok(GameState(
             internal: new_internal_game,
             history: game.history |> list.append([#(move, moving_player)]),
@@ -464,7 +463,7 @@ pub fn get_moves(
     GameState(status: GameOngoing(moving_player), internal: game, ..) -> {
       assert game.moving_player == moving_player as critical_error_text
 
-      get_checked_moves(game:, figure: coord)
+      get_moves_internal(game:, figure: coord)
       |> result.map_error(fn(e) { GetMovesWithInvalidFigure(reason: e) })
     }
   }
@@ -486,7 +485,7 @@ pub fn get_all_moves(
     GameState(status: GameOngoing(moving_player), internal: game, ..) -> {
       assert game.moving_player == moving_player as critical_error_text
 
-      Ok(get_all_checked_moves(game:))
+      Ok(get_all_moves_internal(game:))
     }
   }
 }
@@ -554,9 +553,14 @@ pub fn get_past_position(
   |> Ok
 }
 
+/// Determines whether the player's king is in check by the opponent.
+pub fn is_in_check(game game: GameState) -> Bool {
+  is_in_check_internal(game.internal)
+}
+
 /// Executes a `FigureMove` and checks whether it's legal as well
 /// checking for an `EndCondition`.
-fn player_move_figure(
+fn player_move_internal(
   game game: OngoingGameState,
   move move: FigureMove,
 ) -> Result(#(OngoingGameState, GameStatus), PlayerMoveError) {
@@ -576,7 +580,7 @@ fn player_move_figure(
             }
         }
 
-        get_checked_moves(game:, figure: from)
+        get_moves_internal(game:, figure: from)
       }
       |> result.map_error(fn(e) { PlayerMoveWithInvalidFigure(reason: e) })
     use available_moves <- result.try(available_moves)
@@ -616,7 +620,7 @@ fn player_move_figure(
 }
 
 /// Determines whether the player is being checked by its opponent.
-fn is_in_check(game game: OngoingGameState) -> Bool {
+fn is_in_check_internal(game game: OngoingGameState) -> Bool {
   // Check if attackee is in check by requesting all moves of all
   // attacker pieces and seeing if any of their moves hit the king
 
@@ -729,10 +733,10 @@ fn is_checkmate_or_stalemate(
   let opponent_game = OngoingGameState(..game, moving_player: opponent_player)
 
   let opponent_has_no_moves =
-    get_all_checked_moves(game: opponent_game)
+    get_all_moves_internal(game: opponent_game)
     |> dict.is_empty()
 
-  let opponent_is_in_check = is_in_check(game: opponent_game)
+  let opponent_is_in_check = is_in_check_internal(game: opponent_game)
   case opponent_has_no_moves, opponent_is_in_check {
     True, True -> Some(Victory(winner: game.moving_player, by: Checkmated))
     True, False -> Some(Draw(by: Stalemated))
@@ -764,7 +768,7 @@ fn is_fifty_move_rule(game game: OngoingGameState) -> Bool {
 }
 
 /// Retrieve all legal moves of all figures of `moving_player`
-fn get_all_checked_moves(
+fn get_all_moves_internal(
   game game: OngoingGameState,
 ) -> dict.Dict(Coordinate, set.Set(AvailableFigureMove)) {
   let king = case game.moving_player {
@@ -790,7 +794,7 @@ fn get_all_checked_moves(
     figure_coords
     |> list.map(fn(from) {
       let moves =
-        get_checked_moves(game:, figure: from)
+        get_moves_internal(game:, figure: from)
         // result.unwrap is okay here because `from` should always be valid
         |> result.lazy_unwrap(fn() { panic as critical_error_text })
 
@@ -808,7 +812,7 @@ fn get_all_checked_moves(
 
 /// Retrieve all legal moves of a given figure.
 /// Unlike `get_moves` this doesn't require a `Game` variable
-fn get_checked_moves(
+fn get_moves_internal(
   game game: OngoingGameState,
   figure coord: Coordinate,
 ) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
@@ -830,7 +834,7 @@ fn get_checked_moves(
     }
     game
     |> do_move(move)
-    |> is_in_check()
+    |> is_in_check_internal()
     |> bool.negate()
   })
   |> Ok
@@ -1190,7 +1194,7 @@ fn can_castle_helper(
     required_not_in_check
     |> list.map(StandardFigureMove(king_from, _))
     |> list.map(do_move(game, _))
-    |> list.any(is_in_check)
+    |> list.any(is_in_check_internal)
 
   !goes_through_check
 }

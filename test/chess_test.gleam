@@ -1735,6 +1735,20 @@ pub fn get_all_moves_test() {
   )
 }
 
+pub fn is_in_check_test() {
+  let assert Ok(game) =
+    c.new_custom_game(
+      board: c.Board(
+        white_king: coord.a1,
+        black_king: coord.h8,
+        other_figures: dict.from_list([#(coord.b2, #(c.Pawn, Black))]),
+      ),
+      first_player: White,
+    )
+
+  assert c.is_in_check(game) == True
+}
+
 fn combine_renders(before: String, after: String) -> String {
   "Start:\n" <> before <> "\n---------------------\nAfter:\n" <> after
 }
