@@ -69,10 +69,7 @@ Play chess acoording to professional chess rules!
 
 - [x] Start
   - [x] in standard starting position 
-  - [x] in a legal custom position
-- [ ] Move History
-  - [ ] In proper algebraic chess notation
-  - [x] Request past board positions
+  - [x] in a verified legal custom position
 - [x] Move the figures
   - [x] Request all legal moves of a given figure
   - [x] Prohibit moves that leave the king in check
@@ -88,6 +85,10 @@ Play chess acoording to professional chess rules!
   - [x] by [insufficient material](https://www.chess.com/terms/draw-chess#dead-position)
   - [x] by [threefold repititon](https://www.chess.com/terms/draw-chess#threefold-repetition)
   - [x] by the [50 move rule](https://www.chess.com/terms/draw-chess#fifty-move-rule)
+- [x] Track game history
+  - [x] Request a history of moves 
+  - [x] Go back in time to past board positions/game sates
+- [x] Describe moves with [standard algebraic chess notation](https://www.chess.com/terms/chess-notation)
 
 > <sup>1</sup> The rule of achieving a [draw by a dead position](https://www.chess.com/terms/draw-chess#dead-position) is omitted as implementation is quite complex and could have significant impact on performance.
 > 

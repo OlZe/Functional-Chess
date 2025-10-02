@@ -1,0 +1,33 @@
+---
+version: 1.4.1
+title: Ambigous move is disambiguated by row in SAN:
+file: ./test/chess/algebraic_notation_test.gleam
+test_name: disambiguation_by_row_test
+---
+Before:
+     White's turn
+  ┌─────────────────┐
+8 │ · · · · ♚ · · · │
+7 │ · · · · · · · · │
+6 │ · · · · · · · · │
+5 │ · · · · · · · · │
+4 │ · · · · · ♟ · · │
+3 │ · · · · · · · · │
+2 │ ♕ · · · · · · · │
+1 │ ♕ ♕ · · ♔ · · · │
+  └─────────────────┘
+    a b c d e f g h  
+After move:
+     Black's turn
+  ┌─────────────────┐
+8 │ · · · · ♚ · · · │
+7 │ · · · · · · · · │
+6 │ · · · · · · · · │
+5 │ · · · · · · · · │
+4 │ · · · · · ♟ · · │
+3 │ · · · · · · · · │
+2 │ · ♕ · · · · · · │
+1 │ ♕ ♕ · · ♔ · · · │
+  └─────────────────┘
+    a b c d e f g h  
+SAN described as: Q2b2
