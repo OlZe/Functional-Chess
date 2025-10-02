@@ -470,6 +470,27 @@ pub fn get_moves(
   }
 }
 
+/// Return a list of all legal moves of all figures in play.
+/// 
+/// To execute a move see [`player_move`](#player_move).
+/// 
+/// Returns pairs of `Coordinate` and multiple `AvilableFigureMove`. `Coordinate` refers to the
+/// figure and the set of `AvailableFigureMove` to the moves that this figure can do.
+/// 
+/// Errors if the game was already over.
+pub fn get_all_moves(
+  game game: GameState,
+) -> Result(dict.Dict(Coordinate, set.Set(AvailableFigureMove)), Nil) {
+  case game {
+    GameState(status: GameEnded(_), ..) -> Error(Nil)
+    GameState(status: GameOngoing(moving_player), internal: game, ..) -> {
+      assert game.moving_player == moving_player as critical_error_text
+
+      Ok(get_all_checked_moves(game:))
+    }
+  }
+}
+
 /// Represent an error returned by `get_past_position`.
 pub type GetPastPositionError {
   /// Tried to get a past position with a negative move number.
@@ -708,8 +729,8 @@ fn is_checkmate_or_stalemate(
   let opponent_game = OngoingGameState(..game, moving_player: opponent_player)
 
   let opponent_has_no_moves =
-    get_all_unchecked_moves(game: opponent_game)
-    |> set.is_empty()
+    get_all_checked_moves(game: opponent_game)
+    |> dict.is_empty()
 
   let opponent_is_in_check = is_in_check(game: opponent_game)
   case opponent_has_no_moves, opponent_is_in_check {
@@ -743,35 +764,44 @@ fn is_fifty_move_rule(game game: OngoingGameState) -> Bool {
 }
 
 /// Retrieve all legal moves of all figures of `moving_player`
-fn get_all_unchecked_moves(
+fn get_all_checked_moves(
   game game: OngoingGameState,
-) -> set.Set(AvailableFigureMove) {
+) -> dict.Dict(Coordinate, set.Set(AvailableFigureMove)) {
   let king = case game.moving_player {
     White -> game.board.white_king
     Black -> game.board.black_king
   }
 
   // Get all of moving_player's figures
-  let figures =
+  let figure_coords =
     game.board.other_figures
     |> dict.to_list
-    |> list.filter(fn(coord_and_figure) {
-      coord_and_figure.1.1 == game.moving_player
+    |> list.filter_map(fn(coord_and_figure) {
+      let #(coord, #(_, player)) = coord_and_figure
+      case player == game.moving_player {
+        True -> Ok(coord)
+        False -> Error(Nil)
+      }
     })
-    |> list.map(fn(coord_and_figure) { coord_and_figure.0 })
     |> list.append([king])
-    |> set.from_list()
 
   // Get every figure's moves
   let all_moves =
-    figures
-    |> set.map(fn(from) {
-      get_checked_moves(game:, figure: from)
-      // result.unwrap is okay here because `from` should always be valid
-      |> result.lazy_unwrap(fn() { panic as critical_error_text })
+    figure_coords
+    |> list.map(fn(from) {
+      let moves =
+        get_checked_moves(game:, figure: from)
+        // result.unwrap is okay here because `from` should always be valid
+        |> result.lazy_unwrap(fn() { panic as critical_error_text })
+
+      #(from, moves)
     })
-    // Flatten
-    |> set.fold(set.new(), set.union)
+    // Remove figures which have no moves
+    |> list.filter(fn(from_and_moves) {
+      let #(_, moves) = from_and_moves
+      !set.is_empty(moves)
+    })
+    |> dict.from_list
 
   all_moves
 }
