@@ -1710,6 +1710,31 @@ pub fn get_past_board_position_test() {
   assert move12_of_history == move12
 }
 
+pub fn get_all_moves_test() {
+  let assert Ok(game) =
+    c.new_custom_game(
+      board: c.Board(
+        white_king: coord.a1,
+        black_king: coord.h8,
+        other_figures: dict.from_list([#(coord.e2, #(c.Pawn, White))]),
+      ),
+      first_player: White,
+    )
+
+  let assert Ok(all_moves) = c.get_all_moves(game:)
+  // Render all moves
+  all_moves
+  |> dict.to_list()
+  |> list.map(fn(coord_and_moves) {
+    let #(coord, moves) = coord_and_moves
+    r.render_with_moves(game, coord, moves)
+  })
+  |> combine_n_renders()
+  |> birdie.snap(
+    title: "Getting all moves returns all valid moves of all figures. Each figure get it's own board render.",
+  )
+}
+
 fn combine_renders(before: String, after: String) -> String {
   "Start:\n" <> before <> "\n---------------------\nAfter:\n" <> after
 }
