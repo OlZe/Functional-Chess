@@ -1,8 +1,6 @@
-//// This is the game of chess!
+//// This is the main module which provides all of the necessary functionality to play chess.
 //// 
-//// Refer to the [README](./index.html) for an introduction and some example code.
-//// 
-//// Use [`new_game`](#new_game) to start a game and [`player_move`](#player_move) to make game moves!
+//// Refer to the `README` page for an introduction and some example code.
 
 import chess/internal/counter
 import gleam/bool
@@ -16,9 +14,9 @@ import gleam/set
 
 /// Represents entire game state.
 /// 
-/// Use [`new_game`](#new_game) to generate.
+/// Use `new_game` or `new_custom_game` to generate.
 /// 
-/// Update with [`player_move`](#player_move).
+/// Update with `player_move`.
 pub opaque type GameState {
   GameState(
     internal: OngoingGameState,
@@ -57,8 +55,10 @@ type ThreefoldRepetitionPosition {
 }
 
 /// Represents if the is game still ongoing or over.
+/// 
+/// Use `get_status` to retrieve.
 pub type GameStatus {
-  /// See [`info`](#EndCondition) to see how the game ended.
+  /// See `info` to see how the game ended.
   GameEnded(info: EndCondition)
 
   /// Waiting for the next move by `next_player`.
@@ -78,7 +78,7 @@ pub type WinCondition {
 
   /// The loser forfeited the game.
   /// 
-  /// Use the [`Move`](#Move) [`PlayerForfeits`](#Move) to end the game like this.
+  /// Use the `Move` `PlayerForfeits` to end the game like this.
   Forfeited
 }
 
@@ -86,7 +86,7 @@ pub type WinCondition {
 pub type DrawCondition {
   /// Both players agreed to end the game in a draw.
   /// 
-  /// Use the [`Move`](#Move) [`PlayersAgreeToDraw`](#Move) to end the game like this.
+  /// Use the `Move` `PlayersAgreeToDraw` to end the game like this.
   MutualAgreement
 
   /// A player has no legal moves left, while his king is not in check. See [here](https://www.chess.com/terms/draw-chess#stalemate) for more info.
@@ -98,13 +98,17 @@ pub type DrawCondition {
   /// The same position has been reached three times. See [here](https://www.chess.com/terms/draw-chess#threefold-repetition) for more info.
   ThreefoldRepition
 
-  /// No pawns have been moved and no figures have been captured in 50 full-moves (which is 100 `Move`s as a full-move consists of one move of each player). See [here](https://www.chess.com/terms/draw-chess#fifty-move-rule) for more info.
+  /// No pawns have been moved and no figures have been captured in 50 full-moves (which equate to 100 calls to `player_move` as in chess-tmers a full-move consists of one move for each player).
+  /// 
+  /// See [here](https://www.chess.com/terms/draw-chess#fifty-move-rule) for more info.
   FiftyMoveRule
 }
 
 /// Represents all figure positions on a chess board.
 /// 
 /// `other_figures` contains all figures which are not kings.
+/// 
+/// Use `get_board` to retrieve.
 pub type Board {
   Board(
     white_king: Coordinate,
@@ -131,7 +135,7 @@ pub type Player {
 
 /// Represents a coordinate referring to a square on the chess board.
 /// 
-/// You may use the predefined constants in the module [`chess/coordinates`](./chess/coordinates.html)
+/// You may use the predefined constants in the module `chess/coordinates`
 /// to quickly reference all possible chess squares.
 pub type Coordinate {
   Coordinate(file: File, row: Row)
@@ -139,7 +143,7 @@ pub type Coordinate {
 
 /// Represents a file (vertical line of squares) of a chess board.
 /// 
-/// From white's perspective is FileA is on the left side and FileH on the right side.
+/// From white's perspective is `FileA` is on the left side and `FileH` on the right side.
 pub type File {
   FileA
   FileB
@@ -153,7 +157,7 @@ pub type File {
 
 /// Represents a row (horizontal line of squares) of a chess board.
 /// 
-/// From white's perspective is Row1 on the bottom and Row8 at the top.
+/// From white's perspective is `Row1` on the bottom and `Row8` at the top.
 pub type Row {
   Row1
   Row2
@@ -167,7 +171,7 @@ pub type Row {
 
 /// Represents an action a player can do.
 /// 
-/// To be used with [`player_move`](#player_move)
+/// To be used with `player_move`.
 pub type Move {
   /// Forfeit the game to the opposing player.
   PlayerForfeits
@@ -178,15 +182,15 @@ pub type Move {
   /// draw agreement between both players.
   PlayersAgreeToDraw
 
-  /// Player moves a figure. See [`FigureMove`](#FigureMove).
+  /// Player moves a figure. See `FigureMove`.
   PlayerMovesFigure(FigureMove)
 }
 
 /// Represents a move that moves a figure on the chess board.
 /// 
-/// To be used with [`Move`](#Move) and [`player_move`](#player_move).
+/// To be used with `Move` and `player_move`.
 /// 
-/// Use [`get_moves`](#get_moves) to get a set of [`AvailableFigureMove`](#AvailableFigureMove) which directly map to this.
+/// Use `get_moves` or `get_all_moves` to get a set of `AvailableFigureMove` which directly map to this.
 pub type FigureMove {
   /// Used to move a figure from `from` to `to`.
   StandardFigureMove(from: Coordinate, to: Coordinate)
@@ -196,15 +200,15 @@ pub type FigureMove {
   /// `new_figure` may only be Queen, Rook, Bishop or Knight.
   PawnPromotion(from: Coordinate, to: Coordinate, new_figure: Figure)
 
-  /// Used to do an En Passant pawn move. See [here](https://www.chess.com/terms/en-passant) for more info.
+  /// Used to do an En Passant pawn move.
   /// 
   /// For `to` use the *destination* of the pawn, *not* the square of the oppsing passing pawn that will be captured.
   EnPassant(from: Coordinate, to: Coordinate)
 
-  /// Castle the king on the king-side.
+  /// Used to castle the king on the king-side.
   ShortCastle
 
-  /// Castle the king on the queen-side.
+  /// Used to castle the king on the queen-side.
   LongCastle
 }
 
@@ -229,7 +233,7 @@ pub fn get_status(game game: GameState) -> GameStatus {
 
 /// Returns a history of moves along with which player did them.
 /// 
-/// The 1st element is the 1st move played and the last element is the previously played move.
+/// The first element is the first move played in the game and the last element is the previously played move.
 pub fn get_history(game game: GameState) -> List(#(FigureMove, Player)) {
   game.history
 }
@@ -278,6 +282,8 @@ pub type NewCustomGameError {
 /// `first_player` decides which player goes first.
 /// 
 /// Allows for castling if kings and rooks are in their standard positions.
+/// 
+/// Errors if the provided position is an illegal starting position.
 pub fn new_custom_game(
   board board: Board,
   first_player player: Player,
@@ -355,12 +361,12 @@ pub fn new_custom_game(
   Ok(game)
 }
 
-/// Represents an error returned by [`player_move`](#player_move).
+/// Represents an error returned by `player_move`.
 pub type PlayerMoveError {
   /// Tried making a move while the game is already over.
   PlayerMoveWhileGameAlreadyOver
 
-  /// Tried making a move with an invalid figure. See [`reason`](#SelectFigureError) for extra info.
+  /// Tried making a move with an invalid figure. See `reason` for extra info.
   PlayerMoveWithInvalidFigure(reason: SelectFigureError)
 
   /// Tried making a move which is not legal.
@@ -371,8 +377,8 @@ pub type PlayerMoveError {
 /// 
 /// `move` is to be constructed by yourself.
 /// 
-/// Use [`get_moves`](#get_moves) to get a set of [`AvailableFigureMove`](#AvailableFigureMove) which
-/// provide you with enough information to construct your own [`FigureMove`](#FigureMove) for `move`.
+/// Use `get_moves` or `get_all_moves` to get a set of `AvailableFigureMove` which
+/// provide you with enough information to construct your own `FigureMove` for `move`.
 /// 
 /// Errors if the provided move is not valid/legal or the game was already over.
 pub fn player_move(
@@ -412,46 +418,50 @@ pub fn player_move(
   }
 }
 
-/// Represents an error returned by [`get_moves`](#get_moves).
+/// Represents an error returned by `get_moves`.
 pub type GetMovesError {
   /// Tried getting moves while the game is already over.
   GetMovesWhileGameAlreadyOver
 
-  /// Tried making a move with an invalid figure. See [`reason`](#SelectFigureError) for extra info.
+  /// Tried making a move with an invalid figure. See `reason` for extra info.
   GetMovesWithInvalidFigure(reason: SelectFigureError)
 }
 
 /// Represents a move a figure can do.
 /// 
-/// Directly maps to [`FigureMove`](#FigureMove).
+/// Directly maps to `FigureMove`.
 /// 
-/// Use [`get_moves`](#get_moves) to generate.
+/// Use `get_moves` or `get_all_moves` to generate.
 pub type AvailableFigureMove {
   /// The figure can go to `to`.
   /// 
-  /// To execute this move use [`StandardFigureMove`](#FigureMove).
+  /// To execute this move use `StandardFigureMove`.
   StandardFigureMoveAvailable(to: Coordinate)
 
   /// The figure is a pawn and can go to `to` and promote to another figure (Queen, Rook, Bishop or Knight).
   /// 
-  /// To execute this move use [`PawnPromotion`](#FigureMove).
+  /// To execute this move use `PawnPromotion`.
   PawnPromotionAvailable(to: Coordinate)
 
   /// The figure is a pawn and can do an En Passant move, ending at `to` while capturing the opponent's passing pawn on the side.
   /// 
-  /// See [here](https://www.chess.com/terms/en-passant) for more info.
+  /// To execute this move use `EnPassant`.
   EnPassantAvailable(to: Coordinate)
 
   /// The figure is a king and can castle on the king-side.
+  /// 
+  /// To execute this move use `ShortCastle`.
   ShortCastleAvailable
 
   /// The figure is a king and can castle on the queen-side.
+  /// 
+  /// To execute this move use `LongCastle`.
   LongCastleAvailable
 }
 
 /// Return a list of all legal moves from a selected `figure`.
 /// 
-/// To execute a move see [`player_move`](#player_move).
+/// To execute a move see `player_move`.
 /// 
 /// Errors if the game was already over or the selected `figure` doesn't exist or isn't owned by the player.
 pub fn get_moves(
@@ -469,11 +479,11 @@ pub fn get_moves(
   }
 }
 
-/// Return a list of all legal moves of all figures in play.
+/// Return a list of all legal moves of all figures of the moving player.
 /// 
-/// To execute a move see [`player_move`](#player_move).
+/// To execute a move see `player_move`.
 /// 
-/// Returns pairs of `Coordinate` and multiple `AvilableFigureMove`. `Coordinate` refers to the
+/// Returns pairs of `Coordinate` and multiple `AvailableFigureMove`. `Coordinate` refers to the
 /// figure and the set of `AvailableFigureMove` to the moves that this figure can do.
 /// 
 /// Errors if the game was already over.

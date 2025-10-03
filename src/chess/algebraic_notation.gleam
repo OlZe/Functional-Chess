@@ -1,4 +1,4 @@
-//// This module provides functionality to generate Standard Algrebaic Notation for chess moves.
+//// This module provides functionality to generate [Standard Algrebaic Notation](https://www.chess.com/terms/chess-notation) for chess moves.
 //// 
 //// Here are some examples of SAN:
 //// 
@@ -9,8 +9,6 @@
 //// `exd3+`  "E-Pawn takes D3, check"
 //// 
 //// `Nac3`   "Knight A2 to C3"
-//// 
-//// See [here](https://www.chess.com/terms/chess-notation) for more info.
 //// 
 //// ## Formatting rules
 //// 
@@ -48,11 +46,11 @@
 ////   - `<square>` otherwise
 //// - `<takes>` is:
 ////   - `'x'` if a capture takes place
-////   - otherwise empty
+////   - empty otherwise
 //// - `<destination>` is the `<square>` the figure is moved to
 //// - `<promotion>` is:
-////   - empty if not a pawn promotion move
-////   - `'='<figure>` with pawn promoting to <figure>
+////   - `'='<figure>` if a pawn is promoting to `<figure>`
+////   - empty otherwise
 //// 
 
 import chess as c

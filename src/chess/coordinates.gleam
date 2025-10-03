@@ -1,6 +1,6 @@
 //// This helper module provides constants to quickly reference all squares on the chess board.
 //// 
-//// See the main module for the definition of [`Coordinate`](../chess.html#Coordinate).
+//// See the main module for the definition of `Coordinate`.
 
 import chess
 

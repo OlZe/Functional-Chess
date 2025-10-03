@@ -38,10 +38,10 @@ import gleam_community/ansi
 /// 
 /// - `selected_figure` will be colored yellow
 /// - standard moves will have a yellow background
-/// - of pawn promotion moves will have a blue background
+/// - pawn promotion moves will have a blue background
 /// - en passant moves will have a yellow background
 /// - Long/Short castling will have a yellow background at the king's destination square
-/// - Faulty squares of multiple different moves have a red background to signalize an error
+/// - squares of multiple different moves have a red background to signalize an error
 /// 
 /// Do not use this if you don't want ANSI codes in the output string.
 pub fn render_with_moves(
@@ -146,7 +146,9 @@ pub fn render_with_moves(
 
 /// Renders the `game` into a String without using any ANSI codes.
 /// 
-/// See `render_with_moves` if you want to highlight available moves as well.
+/// See the module description for an example.
+/// 
+/// Use `render_with_moves` if you want to highlight available moves as well.
 pub fn render(game game: c.GameState) -> String {
   let status = render_status(c.get_status(game))
   let board = render_board(c.get_board(game), render_square_plain)
