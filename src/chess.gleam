@@ -459,14 +459,14 @@ pub type AvailableFigureMove {
   LongCastleAvailable
 }
 
-/// Return a list of all legal moves from a selected `figure`.
+/// Return a list of all legal moves of a figure on `from`.
 /// 
 /// To execute a move see `player_move`.
 /// 
-/// Errors if the game was already over or the selected `figure` doesn't exist or isn't owned by the player.
+/// Errors if the game was already over or the selected figure doesn't exist or doesn't belong to the player.
 pub fn get_moves(
   game game: GameState,
-  figure coord: Coordinate,
+  from coord: Coordinate,
 ) -> Result(set.Set(AvailableFigureMove), GetMovesError) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(GetMovesWhileGameAlreadyOver)
