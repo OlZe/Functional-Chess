@@ -197,10 +197,7 @@ pub fn en_passant_test() {
 
   // Allow en passant for white
   let assert Ok(game) =
-    c.player_move(
-      game,
-      c.PlayerMovesFigure(c.StandardFigureMove(coord.e7, coord.e5)),
-    )
+    c.player_move(game, c.StandardFigureMove(coord.e7, coord.e5))
   let move = c.EnPassant(coord.d5, coord.e6)
 
   render_move_with_san(game:, move:)
@@ -273,7 +270,7 @@ fn render_move_with_san(
   game game: c.GameState,
   move move: c.FigureMove,
 ) -> String {
-  let assert Ok(after) = c.player_move(game:, move: c.PlayerMovesFigure(move))
+  let assert Ok(after) = c.player_move(game:, move:)
   let assert Ok(description) = san.describe(game:, move:)
 
   [game, after]

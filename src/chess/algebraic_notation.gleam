@@ -82,7 +82,7 @@ pub fn describe(
 ) -> Result(String, DescribeError) {
   // Make move and handle errors
   let after_state =
-    c.player_move(game:, move: c.PlayerMovesFigure(move))
+    c.player_move(game:, move:)
     |> result.map_error(fn(e) {
       case e {
         c.PlayerMoveIsIllegal -> ProvidedMoveIsIllegal

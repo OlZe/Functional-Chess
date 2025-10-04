@@ -169,26 +169,9 @@ pub type Row {
   Row8
 }
 
-/// Represents an action a player can do.
+/// Represents a player move that moves a figure on the chess board.
 /// 
 /// To be used with `player_move`.
-pub type Move {
-  /// Forfeit the game to the opposing player.
-  PlayerForfeits
-
-  /// Draw the game through mutual agreement of both players.
-  /// 
-  /// Note: The user of this package is responsible for coordinating the actual
-  /// draw agreement between both players.
-  PlayersAgreeToDraw
-
-  /// Player moves a figure. See `FigureMove`.
-  PlayerMovesFigure(FigureMove)
-}
-
-/// Represents a move that moves a figure on the chess board.
-/// 
-/// To be used with `Move` and `player_move`.
 /// 
 /// Use `get_moves` or `get_all_moves` to get a set of `AvailableFigureMove` which directly map to this.
 pub type FigureMove {
@@ -373,6 +356,39 @@ pub type PlayerMoveError {
   PlayerMoveIsIllegal
 }
 
+/// Let the moving player forfeit the game and give victory to the opposing player.
+/// 
+/// Errors if the game was already over.
+pub fn forfeit(game game: GameState) -> Result(GameState, Nil) {
+  case game.status {
+    GameEnded(_) -> Error(Nil)
+    GameOngoing(next_player: forfeiter) ->
+      Ok(
+        GameState(
+          ..game,
+          status: GameEnded(info: Victory(
+            winner: player_flip(forfeiter),
+            by: Forfeited,
+          )),
+        ),
+      )
+  }
+}
+
+/// Draw the game through mutual agreement of both players.
+/// 
+/// Note: The user of this package is responsible for coordinating the actual
+/// draw agreement between both players.
+/// 
+/// Errors if the game was already over.
+pub fn draw(game game: GameState) -> Result(GameState, Nil) {
+  case game.status {
+    GameEnded(_) -> Error(Nil)
+    GameOngoing(_) ->
+      Ok(GameState(..game, status: GameEnded(info: Draw(by: MutualAgreement))))
+  }
+}
+
 /// Let a player make a move.
 /// 
 /// `move` is to be constructed by yourself.
@@ -383,37 +399,22 @@ pub type PlayerMoveError {
 /// Errors if the provided move is not valid/legal or the game was already over.
 pub fn player_move(
   game game: GameState,
-  move move: Move,
+  move move: FigureMove,
 ) -> Result(GameState, PlayerMoveError) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(PlayerMoveWhileGameAlreadyOver)
     GameState(status: GameOngoing(moving_player), internal: internal_game, ..) -> {
       assert internal_game.moving_player == moving_player as critical_error_text
-      case move {
-        PlayerForfeits ->
-          Ok(
-            GameState(
-              ..game,
-              status: GameEnded(Victory(
-                winner: player_flip(moving_player),
-                by: Forfeited,
-              )),
-            ),
-          )
-        PlayersAgreeToDraw ->
-          Ok(GameState(..game, status: GameEnded(Draw(MutualAgreement))))
-        PlayerMovesFigure(move) -> {
-          use #(new_internal_game, new_status) <- result.try(
-            player_move_internal(game: internal_game, move:),
-          )
-          Ok(GameState(
-            internal: new_internal_game,
-            history: game.history |> list.append([#(move, moving_player)]),
-            status: new_status,
-            starting_position: game.starting_position,
-          ))
-        }
-      }
+      use #(new_internal_game, new_status) <- result.try(player_move_internal(
+        game: internal_game,
+        move:,
+      ))
+      Ok(GameState(
+        internal: new_internal_game,
+        history: game.history |> list.append([#(move, moving_player)]),
+        status: new_status,
+        starting_position: game.starting_position,
+      ))
     }
   }
 }
@@ -557,7 +558,7 @@ pub fn get_past_position(
     let #(move, moving_player) = move
     assert game.status == GameOngoing(moving_player) as critical_error_text
 
-    let assert Ok(game) = player_move(game:, move: PlayerMovesFigure(move))
+    let assert Ok(game) = player_move(game:, move:)
     game
   })
   |> Ok
