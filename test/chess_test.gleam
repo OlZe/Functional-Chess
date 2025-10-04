@@ -146,8 +146,7 @@ pub fn pawn_can_en_passant_left_as_white_test() {
   let assert Ok(before) = c.new_custom_game(board, Black)
 
   // Make a double pawn move as black to allow en passant
-  let assert Ok(after) =
-    c.player_move(before, c.StandardFigureMove(coord.a7, coord.a5))
+  let assert Ok(after) = c.player_move(before, c.StdMove(coord.a7, coord.a5))
 
   // Now select figure as white
   let selected_figure = coord.b5
@@ -173,8 +172,7 @@ pub fn pawn_can_en_passant_right_as_white_test() {
   let assert Ok(before) = c.new_custom_game(board, Black)
 
   // Make a double pawn move as black to allow en passant
-  let assert Ok(after) =
-    c.player_move(before, c.StandardFigureMove(coord.c7, coord.c5))
+  let assert Ok(after) = c.player_move(before, c.StdMove(coord.c7, coord.c5))
 
   // Now select figure as white
   let selected_figure = coord.b5
@@ -200,8 +198,7 @@ pub fn pawn_cannot_en_passant_left_as_white_test() {
   let assert Ok(before) = c.new_custom_game(board, Black)
 
   // Make a single-step pawn move as black
-  let assert Ok(after) =
-    c.player_move(before, c.StandardFigureMove(coord.a6, coord.a5))
+  let assert Ok(after) = c.player_move(before, c.StdMove(coord.a6, coord.a5))
 
   // Now select figure as white
   let selected_figure = coord.b5
@@ -227,8 +224,7 @@ pub fn pawn_cannot_en_passant_right_as_white_test() {
   let assert Ok(before) = c.new_custom_game(board, Black)
 
   // Make a single-step pawn move as black
-  let assert Ok(after) =
-    c.player_move(before, c.StandardFigureMove(coord.c6, coord.c5))
+  let assert Ok(after) = c.player_move(before, c.StdMove(coord.c6, coord.c5))
 
   // Now select figure as white
   let selected_figure = coord.b5
@@ -338,8 +334,7 @@ pub fn pawn_can_en_passant_left_as_black_test() {
   let assert Ok(before) = c.new_custom_game(board, White)
 
   // Make a double pawn move as white to allow en passant
-  let assert Ok(after) =
-    c.player_move(before, c.StandardFigureMove(coord.a2, coord.a4))
+  let assert Ok(after) = c.player_move(before, c.StdMove(coord.a2, coord.a4))
 
   // Now select figure as black
   let selected_figure = coord.b4
@@ -365,8 +360,7 @@ pub fn pawn_can_en_passant_right_as_black_test() {
   let assert Ok(before) = c.new_custom_game(board, White)
 
   // Make a double pawn move as black to allow en passant
-  let assert Ok(after) =
-    c.player_move(before, c.StandardFigureMove(coord.c2, coord.c4))
+  let assert Ok(after) = c.player_move(before, c.StdMove(coord.c2, coord.c4))
 
   // Now select figure as black
   let selected_figure = coord.b4
@@ -392,8 +386,7 @@ pub fn pawn_cannot_en_passant_left_as_black_test() {
   let assert Ok(before) = c.new_custom_game(board, White)
 
   // Make a single-step pawn move as white
-  let assert Ok(after) =
-    c.player_move(before, c.StandardFigureMove(coord.a3, coord.a4))
+  let assert Ok(after) = c.player_move(before, c.StdMove(coord.a3, coord.a4))
 
   // Now select figure as black
   let selected_figure = coord.b4
@@ -419,8 +412,7 @@ pub fn pawn_cannot_en_passant_right_as_black_test() {
   let assert Ok(before) = c.new_custom_game(board, White)
 
   // Make a single-step pawn move as white
-  let assert Ok(after) =
-    c.player_move(before, c.StandardFigureMove(coord.c3, coord.c4))
+  let assert Ok(after) = c.player_move(before, c.StdMove(coord.c3, coord.c4))
 
   // Now select figure as black
   let selected_figure = coord.b4
@@ -620,14 +612,11 @@ pub fn king_cannot_castle_after_king_moved_test() {
     )
   let assert Ok(before) = c.new_custom_game(board, White)
   let assert Ok(after_king_moved) =
-    c.player_move(before, c.StandardFigureMove(from: coord.e2, to: coord.e1))
+    c.player_move(before, c.StdMove(from: coord.e2, to: coord.e1))
 
   // Filler move for black as it's now black's turn
   let assert Ok(after_black_moved) =
-    c.player_move(
-      after_king_moved,
-      c.StandardFigureMove(from: coord.e7, to: coord.e6),
-    )
+    c.player_move(after_king_moved, c.StdMove(from: coord.e7, to: coord.e6))
 
   let assert Ok(moves) = c.get_moves(after_black_moved, coord.e1)
 
@@ -655,27 +644,18 @@ pub fn king_cannot_castle_after_rooks_moved_test() {
     )
   let assert Ok(before) = c.new_custom_game(board, White)
   let assert Ok(after_rook1_moved) =
-    c.player_move(before, c.StandardFigureMove(from: coord.a2, to: coord.a1))
+    c.player_move(before, c.StdMove(from: coord.a2, to: coord.a1))
 
   // Filler move for black as it's now black's turn
   let assert Ok(after_black_moved1) =
-    c.player_move(
-      after_rook1_moved,
-      c.StandardFigureMove(from: coord.e7, to: coord.e6),
-    )
+    c.player_move(after_rook1_moved, c.StdMove(from: coord.e7, to: coord.e6))
 
   let assert Ok(after_rook2_moved) =
-    c.player_move(
-      after_black_moved1,
-      c.StandardFigureMove(from: coord.h2, to: coord.h1),
-    )
+    c.player_move(after_black_moved1, c.StdMove(from: coord.h2, to: coord.h1))
 
   // Filler move for black as it's now black's turn
   let assert Ok(after_black_moved2) =
-    c.player_move(
-      after_rook2_moved,
-      c.StandardFigureMove(from: coord.e6, to: coord.e5),
-    )
+    c.player_move(after_rook2_moved, c.StdMove(from: coord.e6, to: coord.e5))
 
   let assert Ok(moves) = c.get_moves(after_black_moved1, coord.e1)
 
@@ -956,7 +936,7 @@ pub fn standard_move_test() {
       ]),
     )
   let assert Ok(before) = c.new_custom_game(board, White)
-  let move = c.StandardFigureMove(coord.a1, coord.b2)
+  let move = c.StdMove(coord.a1, coord.b2)
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -993,7 +973,7 @@ pub fn en_passant_test() {
   let assert Ok(start) = c.new_custom_game(board, Black)
 
   // Black double moves up to allow en passant
-  let move = c.StandardFigureMove(coord.a7, coord.a5)
+  let move = c.StdMove(coord.a7, coord.a5)
   let assert Ok(allowed_en_passant) = c.player_move(start, move)
 
   // White does en_passant
@@ -1036,7 +1016,7 @@ pub fn stalemate_test() {
       ]),
     )
   let assert Ok(before) = c.new_custom_game(board, White)
-  let move = c.StandardFigureMove(coord.h5, coord.b5)
+  let move = c.StdMove(coord.h5, coord.b5)
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -1054,7 +1034,7 @@ pub fn checkmate_test() {
       ]),
     )
   let assert Ok(before) = c.new_custom_game(board, White)
-  let move = c.StandardFigureMove(coord.a6, coord.a8)
+  let move = c.StdMove(coord.a6, coord.a8)
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -1089,7 +1069,7 @@ pub fn insufficient_material_by_king_vs_king_test() {
       ]),
     )
   let assert Ok(before) = c.new_custom_game(board, White)
-  let move = c.StandardFigureMove(coord.e1, coord.e2)
+  let move = c.StdMove(coord.e1, coord.e2)
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -1109,7 +1089,7 @@ pub fn insufficient_material_by_king_vs_king_and_bishop_test() {
       ]),
     )
   let assert Ok(before) = c.new_custom_game(board, White)
-  let move = c.StandardFigureMove(coord.e1, coord.e2)
+  let move = c.StdMove(coord.e1, coord.e2)
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -1129,7 +1109,7 @@ pub fn insufficient_material_by_king_vs_king_and_knight_test() {
       ]),
     )
   let assert Ok(before) = c.new_custom_game(board, White)
-  let move = c.StandardFigureMove(coord.e1, coord.e2)
+  let move = c.StdMove(coord.e1, coord.e2)
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -1150,7 +1130,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_test() {
       ]),
     )
   let assert Ok(before) = c.new_custom_game(board, White)
-  let move = c.StandardFigureMove(coord.e1, coord.e2)
+  let move = c.StdMove(coord.e1, coord.e2)
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -1171,7 +1151,7 @@ pub fn insufficient_material_by_king_and_bishop_vs_king_and_bishop_wrong_colour_
       ]),
     )
   let assert Ok(before) = c.new_custom_game(board, White)
-  let move = c.StandardFigureMove(coord.e1, coord.e2)
+  let move = c.StdMove(coord.e1, coord.e2)
   let assert Ok(after) = c.player_move(before, move)
 
   combine_renders(r.render(before), r.render(after))
@@ -1194,28 +1174,28 @@ pub fn threefold_repetition_test() {
   }
 
   let assert Ok(after_move11) =
-    c.player_move(start, c.StandardFigureMove(coord.e1, coord.f1))
+    c.player_move(start, c.StdMove(coord.e1, coord.f1))
 
   let assert Ok(after_move12) =
-    c.player_move(after_move11, c.StandardFigureMove(coord.e8, coord.f8))
+    c.player_move(after_move11, c.StdMove(coord.e8, coord.f8))
 
   let assert Ok(after_move21) =
-    c.player_move(after_move12, c.StandardFigureMove(coord.f1, coord.e1))
+    c.player_move(after_move12, c.StdMove(coord.f1, coord.e1))
 
   let assert Ok(after_move22) =
-    c.player_move(after_move21, c.StandardFigureMove(coord.f8, coord.e8))
+    c.player_move(after_move21, c.StdMove(coord.f8, coord.e8))
 
   let assert Ok(after_move31) =
-    c.player_move(after_move22, c.StandardFigureMove(coord.e1, coord.f1))
+    c.player_move(after_move22, c.StdMove(coord.e1, coord.f1))
 
   let assert Ok(after_move32) =
-    c.player_move(after_move31, c.StandardFigureMove(coord.e8, coord.f8))
+    c.player_move(after_move31, c.StdMove(coord.e8, coord.f8))
 
   let assert Ok(after_move41) =
-    c.player_move(after_move32, c.StandardFigureMove(coord.f1, coord.e1))
+    c.player_move(after_move32, c.StdMove(coord.f1, coord.e1))
 
   let assert Ok(after_move42) =
-    c.player_move(after_move41, c.StandardFigureMove(coord.f8, coord.e8))
+    c.player_move(after_move41, c.StdMove(coord.f8, coord.e8))
 
   [
     start,
@@ -1251,31 +1231,31 @@ pub fn threefold_repetition_ignores_positions_with_special_moves_test() {
 
   // Make En Passant available
   let assert Ok(after_move02) =
-    c.player_move(start, c.StandardFigureMove(coord.e7, coord.e5))
+    c.player_move(start, c.StdMove(coord.e7, coord.e5))
 
   let assert Ok(after_move11) =
-    c.player_move(after_move02, c.StandardFigureMove(coord.e1, coord.f1))
+    c.player_move(after_move02, c.StdMove(coord.e1, coord.f1))
 
   let assert Ok(after_move12) =
-    c.player_move(after_move11, c.StandardFigureMove(coord.e8, coord.f8))
+    c.player_move(after_move11, c.StdMove(coord.e8, coord.f8))
 
   let assert Ok(after_move21) =
-    c.player_move(after_move12, c.StandardFigureMove(coord.f1, coord.e1))
+    c.player_move(after_move12, c.StdMove(coord.f1, coord.e1))
 
   let assert Ok(after_move22) =
-    c.player_move(after_move21, c.StandardFigureMove(coord.f8, coord.e8))
+    c.player_move(after_move21, c.StdMove(coord.f8, coord.e8))
 
   let assert Ok(after_move31) =
-    c.player_move(after_move22, c.StandardFigureMove(coord.e1, coord.f1))
+    c.player_move(after_move22, c.StdMove(coord.e1, coord.f1))
 
   let assert Ok(after_move32) =
-    c.player_move(after_move31, c.StandardFigureMove(coord.e8, coord.f8))
+    c.player_move(after_move31, c.StdMove(coord.e8, coord.f8))
 
   let assert Ok(after_move41) =
-    c.player_move(after_move32, c.StandardFigureMove(coord.f1, coord.e1))
+    c.player_move(after_move32, c.StdMove(coord.f1, coord.e1))
 
   let assert Ok(after_move42) =
-    c.player_move(after_move41, c.StandardFigureMove(coord.f8, coord.e8))
+    c.player_move(after_move41, c.StdMove(coord.f8, coord.e8))
 
   [
     start,
@@ -1364,16 +1344,10 @@ pub fn fifty_move_rule_test() {
       let #(#(white_from, white_to), #(black_from, black_to)) = move
 
       let assert Ok(game) =
-        c.player_move(
-          game:,
-          move: c.StandardFigureMove(from: white_from, to: white_to),
-        )
+        c.player_move(game:, move: c.StdMove(from: white_from, to: white_to))
 
       let assert Ok(game) =
-        c.player_move(
-          game:,
-          move: c.StandardFigureMove(from: black_from, to: black_to),
-        )
+        c.player_move(game:, move: c.StdMove(from: black_from, to: black_to))
 
       game
     })
@@ -1451,16 +1425,10 @@ pub fn fifty_move_rule_disqualified_by_pawn_move_test() {
       let #(#(white_from, white_to), #(black_from, black_to)) = move
 
       let assert Ok(game) =
-        c.player_move(
-          game:,
-          move: c.StandardFigureMove(from: white_from, to: white_to),
-        )
+        c.player_move(game:, move: c.StdMove(from: white_from, to: white_to))
 
       let assert Ok(game) =
-        c.player_move(
-          game:,
-          move: c.StandardFigureMove(from: black_from, to: black_to),
-        )
+        c.player_move(game:, move: c.StdMove(from: black_from, to: black_to))
 
       game
     })
@@ -1542,16 +1510,10 @@ pub fn fifty_move_rule_disqualified_by_capture_test() {
       let #(#(white_from, white_to), #(black_from, black_to)) = move
 
       let assert Ok(game) =
-        c.player_move(
-          game:,
-          move: c.StandardFigureMove(from: white_from, to: white_to),
-        )
+        c.player_move(game:, move: c.StdMove(from: white_from, to: white_to))
 
       let assert Ok(game) =
-        c.player_move(
-          game:,
-          move: c.StandardFigureMove(from: black_from, to: black_to),
-        )
+        c.player_move(game:, move: c.StdMove(from: black_from, to: black_to))
 
       game
     })
@@ -1561,33 +1523,27 @@ pub fn fifty_move_rule_disqualified_by_capture_test() {
 
 pub fn move_history_test() {
   let game = c.new_game()
-  let assert Ok(game) =
-    c.player_move(game, c.StandardFigureMove(coord.e2, coord.e4))
+  let assert Ok(game) = c.player_move(game, c.StdMove(coord.e2, coord.e4))
 
-  let assert Ok(game) =
-    c.player_move(game, c.StandardFigureMove(coord.d7, coord.d5))
+  let assert Ok(game) = c.player_move(game, c.StdMove(coord.d7, coord.d5))
 
-  let assert Ok(game) =
-    c.player_move(game, c.StandardFigureMove(coord.e4, coord.d5))
+  let assert Ok(game) = c.player_move(game, c.StdMove(coord.e4, coord.d5))
 
   assert c.get_history(game)
     == [
-      #(c.StandardFigureMove(coord.e2, coord.e4), c.White),
-      #(c.StandardFigureMove(coord.d7, coord.d5), c.Black),
-      #(c.StandardFigureMove(coord.e4, coord.d5), c.White),
+      #(c.StdMove(coord.e2, coord.e4), c.White),
+      #(c.StdMove(coord.d7, coord.d5), c.Black),
+      #(c.StdMove(coord.e4, coord.d5), c.White),
     ]
 }
 
 pub fn get_past_board_position_test() {
   let init = c.new_game()
-  let assert Ok(move11) =
-    c.player_move(init, c.StandardFigureMove(coord.e2, coord.e4))
+  let assert Ok(move11) = c.player_move(init, c.StdMove(coord.e2, coord.e4))
 
-  let assert Ok(move12) =
-    c.player_move(move11, c.StandardFigureMove(coord.d7, coord.d5))
+  let assert Ok(move12) = c.player_move(move11, c.StdMove(coord.d7, coord.d5))
 
-  let assert Ok(move21) =
-    c.player_move(move12, c.StandardFigureMove(coord.e4, coord.d5))
+  let assert Ok(move21) = c.player_move(move12, c.StdMove(coord.e4, coord.d5))
 
   let assert Ok(move12_of_history) = c.get_past_position(move21, 2)
   assert move12_of_history == move12

@@ -78,7 +78,7 @@ pub type DescribeError {
 /// Errors if the game is already over, or the provided `move` not legal.
 pub fn describe(
   game game: c.GameState,
-  move move: c.FigureMove,
+  move move: c.Move,
 ) -> Result(String, DescribeError) {
   // Make move and handle errors
   let after_state =
@@ -107,8 +107,8 @@ pub fn describe(
 fn describe_internal(
   game game: c.GameState,
   after_game after_game: c.GameState,
-  all_moves all_moves: dict.Dict(c.Coordinate, set.Set(c.AvailableFigureMove)),
-  move move: c.FigureMove,
+  all_moves all_moves: dict.Dict(c.Coordinate, set.Set(c.AvailableMove)),
+  move move: c.Move,
 ) -> String {
   let is_capture = {
     let figures_after = c.get_board(after_game).other_figures |> dict.size()
@@ -119,7 +119,7 @@ fn describe_internal(
   let description = case move {
     c.ShortCastle -> "O-O"
     c.LongCastle -> "O-O-O"
-    c.StandardFigureMove(from:, to:) -> {
+    c.StdMove(from:, to:) -> {
       let assert Some(#(moving_figure, _)) =
         game |> c.get_board() |> board_get(from)
       figure(moving_figure)
@@ -191,7 +191,7 @@ fn takes(is_takes: Bool) -> String {
 
 fn disambiguation(
   game game: c.GameState,
-  all_moves all_moves: dict.Dict(c.Coordinate, set.Set(c.AvailableFigureMove)),
+  all_moves all_moves: dict.Dict(c.Coordinate, set.Set(c.AvailableMove)),
   from from: c.Coordinate,
   to to: c.Coordinate,
   is_capture is_capture: Bool,
@@ -227,7 +227,7 @@ fn disambiguation(
               c.ShortCastleAvailable -> False
               c.EnPassantAvailable(move_to) -> move_to == to
               c.PawnPromotionAvailable(move_to) -> move_to == to
-              c.StandardFigureMoveAvailable(move_to) -> move_to == to
+              c.StdMoveAvailable(move_to) -> move_to == to
             }
           })
         })

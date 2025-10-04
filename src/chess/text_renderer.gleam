@@ -47,7 +47,7 @@ import gleam_community/ansi
 pub fn render_with_moves(
   game game: c.GameState,
   selected_figure selected_figure: c.Coordinate,
-  moves moves: set.Set(c.AvailableFigureMove),
+  moves moves: set.Set(c.AvailableMove),
 ) -> String {
   let board = c.get_board(game)
 
@@ -63,7 +63,7 @@ pub fn render_with_moves(
     // Determine background
     let is_destination_standard_move =
       moves
-      |> set.contains(c.StandardFigureMoveAvailable(to: coord))
+      |> set.contains(c.StdMoveAvailable(to: coord))
 
     let is_destination_pawn_promotion =
       moves |> set.contains(c.PawnPromotionAvailable(to: coord))

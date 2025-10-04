@@ -20,7 +20,7 @@ import gleam/set
 pub opaque type GameState {
   GameState(
     internal: OngoingGameState,
-    history: List(#(FigureMove, Player)),
+    history: List(#(Move, Player)),
     status: GameStatus,
     starting_position: OngoingGameState,
   )
@@ -78,7 +78,7 @@ pub type WinCondition {
 
   /// The loser forfeited the game.
   /// 
-  /// Use the `Move` `PlayerForfeits` to end the game like this.
+  /// Use the `forfeit` to end the game like this.
   Forfeited
 }
 
@@ -86,7 +86,7 @@ pub type WinCondition {
 pub type DrawCondition {
   /// Both players agreed to end the game in a draw.
   /// 
-  /// Use the `Move` `PlayersAgreeToDraw` to end the game like this.
+  /// Use `draw` to end the game like this.
   MutualAgreement
 
   /// A player has no legal moves left, while his king is not in check. See [here](https://www.chess.com/terms/draw-chess#stalemate) for more info.
@@ -173,10 +173,10 @@ pub type Row {
 /// 
 /// To be used with `player_move`.
 /// 
-/// Use `get_moves` or `get_all_moves` to get a set of `AvailableFigureMove` which directly map to this.
-pub type FigureMove {
+/// Use `get_moves` or `get_all_moves` to get a set of `AvailableMove` which directly map to this.
+pub type Move {
   /// Used to move a figure from `from` to `to`.
-  StandardFigureMove(from: Coordinate, to: Coordinate)
+  StdMove(from: Coordinate, to: Coordinate)
 
   /// Used to move and promote a pawn from `from` to `to` as `new_figure`.
   /// 
@@ -217,7 +217,7 @@ pub fn get_status(game game: GameState) -> GameStatus {
 /// Returns a history of moves along with which player did them.
 /// 
 /// The first element is the first move played in the game and the last element is the previously played move.
-pub fn get_history(game game: GameState) -> List(#(FigureMove, Player)) {
+pub fn get_history(game game: GameState) -> List(#(Move, Player)) {
   game.history
 }
 
@@ -389,17 +389,17 @@ pub fn draw(game game: GameState) -> Result(GameState, Nil) {
   }
 }
 
-/// Let a player make a move.
+/// Let a player move a figure and return the new state.
 /// 
 /// `move` is to be constructed by yourself.
 /// 
-/// Use `get_moves` or `get_all_moves` to get a set of `AvailableFigureMove` which
-/// provide you with enough information to construct your own `FigureMove` for `move`.
+/// Use `get_moves` or `get_all_moves` to get a set of `AvailableMove` which
+/// provide you with enough information to construct your own `Move` for `move`.
 /// 
 /// Errors if the provided move is not valid/legal or the game was already over.
 pub fn player_move(
   game game: GameState,
-  move move: FigureMove,
+  move move: Move,
 ) -> Result(GameState, PlayerMoveError) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(PlayerMoveWhileGameAlreadyOver)
@@ -430,14 +430,14 @@ pub type GetMovesError {
 
 /// Represents a move a figure can do.
 /// 
-/// Directly maps to `FigureMove`.
+/// Directly maps to a `Move`.
 /// 
 /// Use `get_moves` or `get_all_moves` to generate.
-pub type AvailableFigureMove {
+pub type AvailableMove {
   /// The figure can go to `to`.
   /// 
-  /// To execute this move use `StandardFigureMove`.
-  StandardFigureMoveAvailable(to: Coordinate)
+  /// To execute this move use `StdMove`.
+  StdMoveAvailable(to: Coordinate)
 
   /// The figure is a pawn and can go to `to` and promote to another figure (Queen, Rook, Bishop or Knight).
   /// 
@@ -468,7 +468,7 @@ pub type AvailableFigureMove {
 pub fn get_moves(
   game game: GameState,
   from coord: Coordinate,
-) -> Result(set.Set(AvailableFigureMove), GetMovesError) {
+) -> Result(set.Set(AvailableMove), GetMovesError) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(GetMovesWhileGameAlreadyOver)
     GameState(status: GameOngoing(moving_player), internal: game, ..) -> {
@@ -484,13 +484,13 @@ pub fn get_moves(
 /// 
 /// To execute a move see `player_move`.
 /// 
-/// Returns pairs of `Coordinate` and multiple `AvailableFigureMove`. `Coordinate` refers to the
-/// figure and the set of `AvailableFigureMove` to the moves that this figure can do.
+/// Returns pairs of `Coordinate` and multiple `AvailableMove`. `Coordinate` refers to the
+/// figure and the set of `AvailableMove` to the moves that this figure can do.
 /// 
 /// Errors if the game was already over.
 pub fn get_all_moves(
   game game: GameState,
-) -> Result(dict.Dict(Coordinate, set.Set(AvailableFigureMove)), Nil) {
+) -> Result(dict.Dict(Coordinate, set.Set(AvailableMove)), Nil) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(Nil)
     GameState(status: GameOngoing(moving_player), internal: game, ..) -> {
@@ -569,11 +569,11 @@ pub fn is_in_check(game game: GameState) -> Bool {
   is_in_check_internal(game.internal)
 }
 
-/// Executes a `FigureMove` and checks whether it's legal as well
+/// Executes a `Move` and checks whether it's legal as well
 /// checking for an `EndCondition`.
 fn player_move_internal(
   game game: OngoingGameState,
-  move move: FigureMove,
+  move move: Move,
 ) -> Result(#(OngoingGameState, GameStatus), PlayerMoveError) {
   {
     // Check if given move is legal by getting the available moves
@@ -583,7 +583,7 @@ fn player_move_internal(
         let from = case move {
           EnPassant(from, _) -> from
           PawnPromotion(from, _, _) -> from
-          StandardFigureMove(from, _) -> from
+          StdMove(from, _) -> from
           LongCastle | ShortCastle ->
             case game.moving_player {
               White -> Coordinate(FileE, Row1)
@@ -596,9 +596,9 @@ fn player_move_internal(
       |> result.map_error(fn(e) { PlayerMoveWithInvalidFigure(reason: e) })
     use available_moves <- result.try(available_moves)
     let is_legal = {
-      // Map move to its corresponding AvailableFigureMove
+      // Map move to its corresponding AvailableMove
       let move = case move {
-        StandardFigureMove(_, to:) -> StandardFigureMoveAvailable(to:)
+        StdMove(_, to:) -> StdMoveAvailable(to:)
         PawnPromotion(_, _, to:) -> PawnPromotionAvailable(to:)
         EnPassant(_, to:) -> EnPassantAvailable(to:)
         ShortCastle -> ShortCastleAvailable
@@ -668,7 +668,7 @@ fn is_in_check_internal(game game: OngoingGameState) -> Bool {
       LongCastleAvailable -> Error(Nil)
       // Pawn Promotion can hit the king
       PawnPromotionAvailable(to:) -> Ok(to)
-      StandardFigureMoveAvailable(to:) -> Ok(to)
+      StdMoveAvailable(to:) -> Ok(to)
     }
   })
   // Check if any attacked squares belong to the attackee's king
@@ -781,7 +781,7 @@ fn is_fifty_move_rule(game game: OngoingGameState) -> Bool {
 /// Retrieve all legal moves of all figures of `moving_player`
 fn get_all_moves_internal(
   game game: OngoingGameState,
-) -> dict.Dict(Coordinate, set.Set(AvailableFigureMove)) {
+) -> dict.Dict(Coordinate, set.Set(AvailableMove)) {
   let king = case game.moving_player {
     White -> game.board.white_king
     Black -> game.board.black_king
@@ -826,7 +826,7 @@ fn get_all_moves_internal(
 fn get_moves_internal(
   game game: OngoingGameState,
   figure coord: Coordinate,
-) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
+) -> Result(set.Set(AvailableMove), SelectFigureError) {
   use moves <- result.try(get_unchecked_moves(game:, figure: coord))
 
   // Filter moves, that leave the player in check, out
@@ -834,7 +834,7 @@ fn get_moves_internal(
   |> set.filter(fn(move) {
     // Simulate move, then check if moving_player is in check
     let move = case move {
-      StandardFigureMoveAvailable(to:) -> StandardFigureMove(from: coord, to:)
+      StdMoveAvailable(to:) -> StdMove(from: coord, to:)
       EnPassantAvailable(to:) -> EnPassant(from: coord, to:)
       LongCastleAvailable -> LongCastle
       ShortCastleAvailable -> ShortCastle
@@ -857,7 +857,7 @@ fn get_moves_internal(
 fn get_unchecked_moves(
   game game: OngoingGameState,
   figure coord: Coordinate,
-) -> Result(set.Set(AvailableFigureMove), SelectFigureError) {
+) -> Result(set.Set(AvailableMove), SelectFigureError) {
   let selected_figure =
     board_get(game.board, coord)
     |> option.to_result(SelectedFigureDoesntExist)
@@ -888,7 +888,7 @@ fn get_unchecked_moves(
 fn get_unchecked_moves_for_pawn(
   game game: OngoingGameState,
   coord coord: Coordinate,
-) -> set.Set(AvailableFigureMove) {
+) -> set.Set(AvailableMove) {
   let up_direction = case game.moving_player {
     White -> 1
     Black -> -1
@@ -970,7 +970,7 @@ fn get_unchecked_moves_for_pawn(
         Coordinate(_, row:) if row == promotion_row ->
           PawnPromotionAvailable(to:)
         // Regular pawn move
-        _ -> StandardFigureMoveAvailable(to:)
+        _ -> StdMoveAvailable(to:)
       }
     })
     |> set.from_list
@@ -990,7 +990,7 @@ fn get_unchecked_moves_for_pawn(
 fn can_en_passant(
   game game: OngoingGameState,
   coord pawn_pos: Coordinate,
-) -> Option(AvailableFigureMove) {
+) -> Option(AvailableMove) {
   use to_file <- option.then(game.en_passant_possible)
 
   // Check en passant from left and right file
@@ -1017,7 +1017,7 @@ fn can_en_passant(
 fn get_unchecked_moves_for_king(
   game game: OngoingGameState,
   coord coord: Coordinate,
-) -> set.Set(AvailableFigureMove) {
+) -> set.Set(AvailableMove) {
   let standard_moves =
     [
       #(0, 1),
@@ -1034,7 +1034,7 @@ fn get_unchecked_moves_for_king(
     |> set.map(find_visible_squares_for_a_standard_figure_move(game.board, _))
     // Flatten
     |> set.fold(set.new(), set.union)
-    |> set.map(fn(to) { StandardFigureMoveAvailable(to) })
+    |> set.map(fn(to) { StdMoveAvailable(to) })
 
   let short_castle = case can_short_castle(game) {
     True -> Some(ShortCastleAvailable)
@@ -1203,7 +1203,7 @@ fn can_castle_helper(
   // Check if the king is castling from, through, into a check
   let goes_through_check =
     required_not_in_check
-    |> list.map(StandardFigureMove(king_from, _))
+    |> list.map(StdMove(king_from, _))
     |> list.map(do_move(game, _))
     |> list.any(is_in_check_internal)
 
@@ -1217,7 +1217,7 @@ fn get_unchecked_moves_for_knight(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-) -> set.Set(AvailableFigureMove) {
+) -> set.Set(AvailableMove) {
   [
     #(1, 2),
     #(2, 1),
@@ -1233,7 +1233,7 @@ fn get_unchecked_moves_for_knight(
   |> set.map(find_visible_squares_for_a_standard_figure_move(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StandardFigureMoveAvailable(to:) })
+  |> set.map(fn(to) { StdMoveAvailable(to:) })
 }
 
 /// Get all possible moves of a rook
@@ -1243,14 +1243,14 @@ fn get_unchecked_moves_for_rook(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-) -> set.Set(AvailableFigureMove) {
+) -> set.Set(AvailableMove) {
   [#(0, 1), #(1, 0), #(0, -1), #(-1, 0)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
   |> set.map(find_visible_squares_for_a_standard_figure_move(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StandardFigureMoveAvailable(to:) })
+  |> set.map(fn(to) { StdMoveAvailable(to:) })
 }
 
 /// Get all possible moves of a bishop
@@ -1260,14 +1260,14 @@ fn get_unchecked_moves_for_bishop(
   board board: Board,
   coord coord: Coordinate,
   moving_player attacker: Player,
-) -> set.Set(AvailableFigureMove) {
+) -> set.Set(AvailableMove) {
   [#(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
   |> set.map(find_visible_squares_for_a_standard_figure_move(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StandardFigureMoveAvailable(to) })
+  |> set.map(fn(to) { StdMoveAvailable(to) })
 }
 
 /// Get all possible moves of a queen
@@ -1277,14 +1277,14 @@ fn get_unchecked_moves_for_queen(
   board board: Board,
   coord coord: Coordinate,
   attacking_player attacker: Player,
-) -> set.Set(AvailableFigureMove) {
+) -> set.Set(AvailableMove) {
   [#(0, 1), #(1, 0), #(0, -1), #(-1, 0), #(1, 1), #(1, -1), #(-1, -1), #(-1, 1)]
   |> set.from_list()
   |> set.map(LineOfSight(origin: coord, direction: _, attacker:))
   |> set.map(find_visible_squares_for_a_standard_figure_move(board, _))
   // Flatten
   |> set.fold(set.new(), set.union)
-  |> set.map(fn(to) { StandardFigureMoveAvailable(to:) })
+  |> set.map(fn(to) { StdMoveAvailable(to:) })
 }
 
 /// Used to describe the nature of a regular figure's movement abilities
@@ -1418,18 +1418,14 @@ fn board_get(
   }
 }
 
-/// Execute a `FigureMove` and returns a new `OngoingGameState`. Does not flip `moving_player`.
+/// Execute a `Move` and returns a new `OngoingGameState`. Does not flip `moving_player`.
 /// 
 /// Peforms no checking wether the provided move is legal. Overrides other figures at the move's destination.
 /// 
 /// WARNING: Panics if the move is invalid (moving from an empty square, promoting from a non-pawn, ...)
-fn do_move(
-  game game: OngoingGameState,
-  move move: FigureMove,
-) -> OngoingGameState {
+fn do_move(game game: OngoingGameState, move move: Move) -> OngoingGameState {
   case move {
-    StandardFigureMove(from:, to:) ->
-      do_move_standard_figure_move(game:, from:, to:)
+    StdMove(from:, to:) -> do_move_standard_figure_move(game:, from:, to:)
     PawnPromotion(from:, to:, new_figure:) ->
       do_move_pawn_promotion(game:, from:, to:, new_figure:)
     EnPassant(from:, to:) -> do_move_en_passant(game:, from:, to:)

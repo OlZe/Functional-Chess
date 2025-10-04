@@ -9,7 +9,7 @@ import gleam/string
 
 pub fn basic_pawn_move_test() {
   let game = c.new_game()
-  let move = c.StandardFigureMove(from: coord.e2, to: coord.e4)
+  let move = c.StdMove(from: coord.e2, to: coord.e4)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Normal pawn move has correct SAN:")
@@ -17,7 +17,7 @@ pub fn basic_pawn_move_test() {
 
 pub fn basic_knight_move_test() {
   let game = c.new_game()
-  let move = c.StandardFigureMove(from: coord.b1, to: coord.c3)
+  let move = c.StdMove(from: coord.b1, to: coord.c3)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Normal knight move has correct SAN:")
@@ -36,7 +36,7 @@ pub fn basic_capture_test() {
         ]),
       ),
     )
-  let move = c.StandardFigureMove(from: coord.e3, to: coord.f2)
+  let move = c.StdMove(from: coord.e3, to: coord.f2)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Unambigous bishop capture move has correct SAN:")
@@ -55,7 +55,7 @@ pub fn basic_pawn_capture_test() {
         ]),
       ),
     )
-  let move = c.StandardFigureMove(from: coord.e3, to: coord.f4)
+  let move = c.StdMove(from: coord.e3, to: coord.f4)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Pawn capture move has correct SAN:")
@@ -114,7 +114,7 @@ pub fn disambiguation_by_coord_test() {
         ]),
       ),
     )
-  let move = c.StandardFigureMove(coord.a1, coord.b2)
+  let move = c.StdMove(coord.a1, coord.b2)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Ambigous move is disambiguated by coord in SAN:")
@@ -135,7 +135,7 @@ pub fn disambiguation_by_file_test() {
         ]),
       ),
     )
-  let move = c.StandardFigureMove(coord.b1, coord.b2)
+  let move = c.StdMove(coord.b1, coord.b2)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Ambigous move is disambiguated by file in SAN:")
@@ -156,7 +156,7 @@ pub fn disambiguation_by_row_test() {
         ]),
       ),
     )
-  let move = c.StandardFigureMove(coord.a2, coord.b2)
+  let move = c.StdMove(coord.a2, coord.b2)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Ambigous move is disambiguated by row in SAN:")
@@ -196,8 +196,7 @@ pub fn en_passant_test() {
     )
 
   // Allow en passant for white
-  let assert Ok(game) =
-    c.player_move(game, c.StandardFigureMove(coord.e7, coord.e5))
+  let assert Ok(game) = c.player_move(game, c.StdMove(coord.e7, coord.e5))
   let move = c.EnPassant(coord.d5, coord.e6)
 
   render_move_with_san(game:, move:)
@@ -219,7 +218,7 @@ pub fn complicated_move_test() {
         ]),
       ),
     )
-  let move = c.StandardFigureMove(coord.d5, coord.g8)
+  let move = c.StdMove(coord.d5, coord.g8)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(
@@ -240,7 +239,7 @@ pub fn checking_test() {
         ]),
       ),
     )
-  let move = c.StandardFigureMove(coord.a2, coord.e2)
+  let move = c.StdMove(coord.a2, coord.e2)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Checking move has correct SAN:")
@@ -260,16 +259,13 @@ pub fn checkmating_test() {
         ]),
       ),
     )
-  let move = c.StandardFigureMove(coord.b7, coord.b8)
+  let move = c.StdMove(coord.b7, coord.b8)
 
   render_move_with_san(game:, move:)
   |> birdie.snap(title: "Checkmating move has correct SAN:")
 }
 
-fn render_move_with_san(
-  game game: c.GameState,
-  move move: c.FigureMove,
-) -> String {
+fn render_move_with_san(game game: c.GameState, move move: c.Move) -> String {
   let assert Ok(after) = c.player_move(game:, move:)
   let assert Ok(description) = san.describe(game:, move:)
 
