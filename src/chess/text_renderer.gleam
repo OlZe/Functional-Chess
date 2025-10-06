@@ -32,7 +32,6 @@ import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/set
 import gleam/string
-import gleam_community/ansi
 
 /// Like `render` but also highlights a set of available moves on the board through ANSI codes.
 /// 
@@ -57,7 +56,7 @@ pub fn render_with_moves(
     // Highlight selected_figure
     let square = case selected_figure == coord {
       False -> square
-      True -> ansi.yellow(square)
+      True -> ansi_yellow(square)
     }
 
     // Determine background
@@ -120,19 +119,19 @@ pub fn render_with_moves(
       is_destination_long_castle
     {
       // Highlight standard move
-      True, False, False, False, False -> ansi.bg_yellow(square)
+      True, False, False, False, False -> ansi_bg_yellow(square)
       // Highlight pawn promotion
-      False, True, False, False, False -> ansi.bg_blue(square)
+      False, True, False, False, False -> ansi_bg_blue(square)
       // Highlight en passant
-      False, False, True, False, False -> ansi.bg_yellow(square)
+      False, False, True, False, False -> ansi_bg_yellow(square)
       // Highlight short castle
-      False, False, False, True, False -> ansi.bg_yellow(square)
+      False, False, False, True, False -> ansi_bg_yellow(square)
       // Highlight long castle
-      False, False, False, False, True -> ansi.bg_yellow(square)
+      False, False, False, False, True -> ansi_bg_yellow(square)
       // No highlight
       False, False, False, False, False -> square
       // Error
-      _, _, _, _, _ -> ansi.bg_bright_red(square)
+      _, _, _, _, _ -> ansi_bg_red(square)
     }
 
     square
@@ -256,4 +255,20 @@ fn board_get(
     c.Board(_, _, other_figures) ->
       other_figures |> dict.get(coord) |> option.from_result()
   }
+}
+
+fn ansi_yellow(text text: String) -> String {
+  "\u{001B}[33m" <> text <> "\u{001B}[39m"
+}
+
+fn ansi_bg_yellow(text text: String) -> String {
+  "\u{001B}[43m" <> text <> "\u{001B}[49m"
+}
+
+fn ansi_bg_blue(text text: String) -> String {
+  "\u{001B}[44m" <> text <> "\u{001B}[49m"
+}
+
+fn ansi_bg_red(text text: String) -> String {
+  "\u{001B}[41m" <> text <> "\u{001B}[49m"
 }
