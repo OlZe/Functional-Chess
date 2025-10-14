@@ -27,9 +27,8 @@
 import chess as c
 import chess/coordinates
 import gleam/bool
-import gleam/dict
 import gleam/list
-import gleam/option.{type Option, Some}
+import gleam/option.{Some}
 import gleam/set
 import gleam/string
 
@@ -48,10 +47,8 @@ pub fn render_with_moves(
   selected_figure selected_figure: c.Coordinate,
   moves moves: set.Set(c.AvailableMove),
 ) -> String {
-  let board = c.get_board(game)
-
-  let render_square_with_moves_fn = fn(board: c.Board, coord: c.Coordinate) -> String {
-    let square = render_square_plain(board:, coord:)
+  let render_square_with_moves_fn = fn(game: c.GameState, coord: c.Coordinate) -> String {
+    let square = render_square_plain(game:, coord:)
 
     // Highlight selected_figure
     let square = case selected_figure == coord {
@@ -78,7 +75,7 @@ pub fn render_with_moves(
 
       // Short castle is in the move list.
       // Find owner of king to determine standard castling highlight square.
-      case board_get(board, selected_figure) {
+      case c.get_figure(game:, coord: selected_figure) {
         Some(#(c.King, owner)) -> {
           let highlight_square = case owner {
             c.White -> coordinates.g1
@@ -98,7 +95,7 @@ pub fn render_with_moves(
 
       // Long castle is in the move list.
       // Find owner of king to determine standard castling highlight square.
-      case board_get(board, selected_figure) {
+      case c.get_figure(game:, coord: selected_figure) {
         Some(#(c.King, owner)) -> {
           let highlight_square = case owner {
             c.White -> coordinates.c1
@@ -138,7 +135,7 @@ pub fn render_with_moves(
   }
 
   let status = render_status(c.get_status(game))
-  let board = render_board(board, render_square_with_moves_fn)
+  let board = render_board(game, render_square_with_moves_fn)
 
   status <> "\n" <> board
 }
@@ -150,18 +147,18 @@ pub fn render_with_moves(
 /// Use `render_with_moves` if you want to highlight available moves as well.
 pub fn render(game game: c.GameState) -> String {
   let status = render_status(c.get_status(game))
-  let board = render_board(c.get_board(game), render_square_plain)
+  let board = render_board(game, render_square_plain)
 
   status <> "\n" <> board
 }
 
 fn render_board(
-  board board: c.Board,
-  render_square_fn render_square: fn(c.Board, c.Coordinate) -> String,
+  game game: c.GameState,
+  render_square_fn render_square: fn(c.GameState, c.Coordinate) -> String,
 ) -> String {
   let content =
     [c.Row8, c.Row7, c.Row6, c.Row5, c.Row4, c.Row3, c.Row2, c.Row1]
-    |> list.map(render_row(board, _, render_square))
+    |> list.map(render_row(game, _, render_square))
     |> string.join("\n")
 
   let prefix = "  ┌─────────────────┐"
@@ -171,9 +168,9 @@ fn render_board(
 }
 
 fn render_row(
-  board board: c.Board,
+  game game: c.GameState,
   row row: c.Row,
-  render_square_fn render_square: fn(c.Board, c.Coordinate) -> String,
+  render_square_fn render_square: fn(c.GameState, c.Coordinate) -> String,
 ) -> String {
   let row_num = case row {
     c.Row1 -> "1"
@@ -189,7 +186,7 @@ fn render_row(
   let content =
     [c.FileA, c.FileB, c.FileC, c.FileD, c.FileE, c.FileF, c.FileG, c.FileH]
     |> list.map(c.Coordinate(_, row))
-    |> list.map(render_square(board, _))
+    |> list.map(render_square(game, _))
     |> string.join(" ")
 
   let prefix = row_num <> " │ "
@@ -200,10 +197,10 @@ fn render_row(
 
 /// Renders a square into a basic unicode-char
 fn render_square_plain(
-  board board: c.Board,
+  game game: c.GameState,
   coord coord: c.Coordinate,
 ) -> String {
-  let square = board_get(board:, coord:)
+  let square = c.get_figure(game:, coord:)
   case square {
     option.None -> "·"
     option.Some(figure) ->
@@ -241,19 +238,6 @@ fn render_status(status status: c.GameStatus) -> String {
     c.GameEnded(c.Draw(by: c.InsufficientMaterial)) -> "InsufficientMaterial"
     c.GameEnded(c.Draw(by: c.ThreefoldRepition)) -> " Threefold Repetition"
     c.GameEnded(c.Draw(by: c.FiftyMoveRule)) -> "  Fifty Moves Rule"
-  }
-}
-
-/// Get a figure on `coord` from a `board`
-fn board_get(
-  board board: c.Board,
-  coord coord: c.Coordinate,
-) -> Option(#(c.Figure, c.Player)) {
-  case board {
-    c.Board(white_king, _, _) if white_king == coord -> Some(#(c.King, c.White))
-    c.Board(_, black_king, _) if black_king == coord -> Some(#(c.King, c.Black))
-    c.Board(_, _, other_figures) ->
-      other_figures |> dict.get(coord) |> option.from_result()
   }
 }
 

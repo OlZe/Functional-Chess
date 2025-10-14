@@ -57,7 +57,7 @@ import chess as c
 import gleam/bool
 import gleam/dict
 import gleam/list
-import gleam/option.{type Option, Some}
+import gleam/option.{Some}
 import gleam/result
 import gleam/set
 
@@ -111,8 +111,8 @@ fn describe_internal(
   move move: c.Move,
 ) -> String {
   let is_capture = {
-    let figures_after = c.get_board(after_game).other_figures |> dict.size()
-    let figures_before = c.get_board(game).other_figures |> dict.size()
+    let figures_after = c.get_amount_figures(after_game)
+    let figures_before = c.get_amount_figures(game)
     figures_before > figures_after
   }
 
@@ -120,24 +120,21 @@ fn describe_internal(
     c.ShortCastle -> "O-O"
     c.LongCastle -> "O-O-O"
     c.StdMove(from:, to:) -> {
-      let assert Some(#(moving_figure, _)) =
-        game |> c.get_board() |> board_get(from)
+      let assert Some(#(moving_figure, _)) = c.get_figure(game, from)
       figure(moving_figure)
       <> disambiguation(game:, all_moves:, from:, to:, is_capture:)
       <> takes(is_capture)
       <> destination(to)
     }
     c.EnPassant(from:, to:) -> {
-      let assert Some(#(moving_figure, _)) =
-        game |> c.get_board() |> board_get(from)
+      let assert Some(#(moving_figure, _)) = c.get_figure(game, from)
       figure(moving_figure)
       <> disambiguation(game:, all_moves:, from:, to:, is_capture:)
       <> takes(is_capture)
       <> destination(to)
     }
     c.PawnPromotion(from:, to:, new_figure:) -> {
-      let assert Some(#(moving_figure, _)) =
-        game |> c.get_board() |> board_get(from)
+      let assert Some(#(moving_figure, _)) = c.get_figure(game, from)
       figure(moving_figure)
       <> disambiguation(game:, all_moves:, from:, to:, is_capture:)
       <> takes(is_capture)
@@ -196,7 +193,7 @@ fn disambiguation(
   to to: c.Coordinate,
   is_capture is_capture: Bool,
 ) -> String {
-  let assert Some(figure) = game |> c.get_board() |> board_get(from)
+  let assert Some(figure) = c.get_figure(game, from)
 
   case figure {
     #(c.Pawn, _) if is_capture -> file_to_string(from.file)
@@ -208,7 +205,7 @@ fn disambiguation(
         // Filter for same figures on different positions
         |> list.filter(fn(coord) {
           use <- bool.guard(when: coord == from, return: False)
-          let other_figure = game |> c.get_board() |> board_get(coord)
+          let other_figure = c.get_figure(game, coord)
           other_figure == Some(#(figure, player))
         })
 
@@ -301,17 +298,5 @@ fn file_to_string(file file: c.File) -> String {
     c.FileF -> "f"
     c.FileG -> "g"
     c.FileH -> "h"
-  }
-}
-
-fn board_get(
-  board board: c.Board,
-  coord coord: c.Coordinate,
-) -> Option(#(c.Figure, c.Player)) {
-  case board {
-    c.Board(white_king, _, _) if white_king == coord -> Some(#(c.King, c.White))
-    c.Board(_, black_king, _) if black_king == coord -> Some(#(c.King, c.Black))
-    c.Board(_, _, other_figures) ->
-      other_figures |> dict.get(coord) |> option.from_result()
   }
 }

@@ -108,7 +108,7 @@ pub type DrawCondition {
 /// 
 /// `other_figures` contains all figures which are not kings.
 /// 
-/// Use `get_board` to retrieve.
+/// To be used with `new_custom_game`.
 pub type Board {
   Board(
     white_king: Coordinate,
@@ -204,9 +204,20 @@ pub type SelectFigureError {
   SelectedFigureIsNotFriendly
 }
 
-/// Return a `Board` from a `GameState`.
-pub fn get_board(game game: GameState) -> Board {
+/// Return a figure and its owning player from the board.
+/// 
+/// Returns none if the provided coordinate points to an empty square.
+pub fn get_figure(
+  game game: GameState,
+  coord coord: Coordinate,
+) -> Option(#(Figure, Player)) {
   game.internal.board
+  |> board_get(coord:)
+}
+
+/// Return the amount of figures in play on the board.
+pub fn get_amount_figures(game game: GameState) -> Int {
+  dict.size(game.internal.board.other_figures) + 2
 }
 
 /// Return a `GameStatus` from a `GameState`.
