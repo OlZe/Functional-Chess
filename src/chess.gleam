@@ -1533,19 +1533,27 @@ fn do_move_standard_figure_move(
         #(_, _) -> None
       }
 
-      // Disqualify castling if not disqualified already and moving from one
+      // Disqualify castling if not disqualified already and moving from or to one
       // of the rook's home squares
       let short_castle_disqualified_white =
-        game.short_castle_disqualified_white || from == Coordinate(FileH, Row1)
+        game.short_castle_disqualified_white
+        || from == Coordinate(FileH, Row1)
+        || to == Coordinate(FileH, Row1)
 
       let long_castle_disqualified_white =
-        game.long_castle_disqualified_white || from == Coordinate(FileA, Row1)
+        game.long_castle_disqualified_white
+        || from == Coordinate(FileA, Row1)
+        || to == Coordinate(FileA, Row1)
 
       let short_castle_disqualified_black =
-        game.short_castle_disqualified_black || from == Coordinate(FileH, Row8)
+        game.short_castle_disqualified_black
+        || from == Coordinate(FileH, Row8)
+        || to == Coordinate(FileH, Row8)
 
       let long_castle_disqualified_black =
-        game.long_castle_disqualified_black || from == Coordinate(FileA, Row8)
+        game.long_castle_disqualified_black
+        || from == Coordinate(FileA, Row8)
+        || to == Coordinate(FileA, Row8)
 
       OngoingGameState(
         moving_player: game.moving_player,
@@ -1580,8 +1588,25 @@ fn do_move_pawn_promotion(
   assert board_get(board, from) == Some(#(Pawn, moving_player))
     as critical_error_text
 
+  // Disqualify castling if not disqualified already and moving to one of the rook's home squares
+  let short_castle_disqualified_white =
+    game.short_castle_disqualified_white || to == Coordinate(FileH, Row1)
+
+  let long_castle_disqualified_white =
+    game.long_castle_disqualified_white || to == Coordinate(FileA, Row1)
+
+  let short_castle_disqualified_black =
+    game.short_castle_disqualified_black || to == Coordinate(FileH, Row8)
+
+  let long_castle_disqualified_black =
+    game.long_castle_disqualified_black || to == Coordinate(FileA, Row8)
+
   OngoingGameState(
-    ..game,
+    moving_player: game.moving_player,
+    short_castle_disqualified_white:,
+    long_castle_disqualified_white:,
+    short_castle_disqualified_black:,
+    long_castle_disqualified_black:,
     en_passant_possible: None,
     // Reset fifty move rule counter as per definition
     fifty_move_rule_counter: 0,

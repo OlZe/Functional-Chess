@@ -672,6 +672,33 @@ pub fn king_cannot_castle_after_rooks_moved_test() {
   )
 }
 
+pub fn king_cannot_castle_after_rook_captured_test() {
+  let assert Ok(game) =
+    c.new_custom_game(
+      board: c.Board(
+        white_king: coord.e1,
+        black_king: coord.e8,
+        other_figures: dict.from_list([
+          #(coord.a8, #(c.Rook, Black)),
+          #(coord.h8, #(c.Rook, Black)),
+          #(coord.b7, #(c.Bishop, White)),
+        ]),
+      ),
+      first_player: White,
+    )
+
+  let assert Ok(after) =
+    c.player_move(game:, move: c.StdMove(coord.b7, coord.a8))
+
+  let king = coord.e8
+  let assert Ok(moves) = c.get_moves(after, king)
+
+  combine_renders(r.render(game), r.render_with_moves(after, king, moves))
+  |> birdie.snap(
+    "King can only castle long, after king-side rook as been captured.",
+  )
+}
+
 pub fn king_can_castle_as_black_test() {
   let board =
     c.Board(
