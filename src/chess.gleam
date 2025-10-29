@@ -569,6 +569,10 @@ pub fn get_past_position(
     )),
   )
 
+  // If the move_number is the max move number, then it's requesting the current state
+  use <- bool.guard(when: move_number == max_move_number, return: Ok(root_game))
+
+  // Start tracing to the past position
   let after_game_history =
     root_game.history
     |> list.take(move_number)
