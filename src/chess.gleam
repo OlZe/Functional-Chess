@@ -23,6 +23,7 @@ pub opaque type GameState {
     history: List(#(Move, Player)),
     status: GameStatus,
     starting_position: OngoingGameState,
+    all_moves: dict.Dict(Coordinate, set.Set(AvailableMove)),
   )
 }
 
@@ -252,6 +253,7 @@ pub fn new_game() -> GameState {
     status: GameOngoing(White),
     history: [],
     starting_position: state,
+    all_moves: find_all_moves_internal(state),
   )
 }
 
@@ -342,6 +344,7 @@ pub fn new_custom_game(
       status: GameOngoing(player),
       history: [],
       starting_position: state,
+      all_moves: find_all_moves_internal(state),
     )
 
   // Check if enemy is in check
@@ -359,9 +362,6 @@ pub fn new_custom_game(
 pub type PlayerMoveError {
   /// Tried making a move while the game is already over.
   PlayerMoveWhileGameAlreadyOver
-
-  /// Tried making a move with an invalid figure. See `reason` for extra info.
-  PlayerMoveWithInvalidFigure(reason: SelectFigureError)
 
   /// Tried making a move which is not legal.
   PlayerMoveIsIllegal
@@ -414,17 +414,19 @@ pub fn player_move(
 ) -> Result(GameState, PlayerMoveError) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(PlayerMoveWhileGameAlreadyOver)
-    GameState(status: GameOngoing(moving_player), internal: internal_game, ..) -> {
-      assert internal_game.moving_player == moving_player as critical_error_text
+    GameState(status: GameOngoing(moving_player), ..) -> {
+      assert game.internal.moving_player == moving_player as critical_error_text
       use #(new_internal_game, new_status) <- result.try(player_move_internal(
-        game: internal_game,
+        game: game.internal,
         move:,
+        all_moves: game.all_moves,
       ))
       Ok(GameState(
         internal: new_internal_game,
         history: game.history |> list.append([#(move, moving_player)]),
         status: new_status,
         starting_position: game.starting_position,
+        all_moves: find_all_moves_internal(new_internal_game),
       ))
     }
   }
@@ -435,8 +437,8 @@ pub type GetMovesError {
   /// Tried getting moves while the game is already over.
   GetMovesWhileGameAlreadyOver
 
-  /// Tried making a move with an invalid figure. See `reason` for extra info.
-  GetMovesWithInvalidFigure(reason: SelectFigureError)
+  /// Tried making a move with an invalid figure (Figure doesn't exist or belongs to opponent).
+  GetMovesWithInvalidFigure
 }
 
 /// Represents a move a figure can do.
@@ -471,7 +473,9 @@ pub type AvailableMove {
   LongCastleAvailable
 }
 
-/// Return a list of all legal moves of a figure on `from`.
+/// Return a set of all legal moves of a figure on `from`.
+/// 
+/// Returns an empty set if this figure has no legal moves. 
 /// 
 /// To execute a move see `player_move`.
 /// 
@@ -482,11 +486,21 @@ pub fn get_moves(
 ) -> Result(set.Set(AvailableMove), GetMovesError) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(GetMovesWhileGameAlreadyOver)
-    GameState(status: GameOngoing(moving_player), internal: game, ..) -> {
-      assert game.moving_player == moving_player as critical_error_text
+    GameState(status: GameOngoing(moving_player), ..) -> {
+      assert game.internal.moving_player == moving_player as critical_error_text
 
-      get_moves_internal(game:, figure: coord)
-      |> result.map_error(fn(e) { GetMovesWithInvalidFigure(reason: e) })
+      // Check if figure exists
+      let exists = case get_figure(game:, coord:) {
+        Some(#(_, owner)) if owner == moving_player -> True
+        _ -> False
+      }
+      use <- bool.guard(when: !exists, return: Error(GetMovesWithInvalidFigure))
+
+      // Get moves and if they don't exist, map to empty set
+      game.all_moves
+      |> dict.get(coord)
+      |> result.lazy_unwrap(fn() { set.new() })
+      |> Ok
     }
   }
 }
@@ -504,10 +518,10 @@ pub fn get_all_moves(
 ) -> Result(dict.Dict(Coordinate, set.Set(AvailableMove)), Nil) {
   case game {
     GameState(status: GameEnded(_), ..) -> Error(Nil)
-    GameState(status: GameOngoing(moving_player), internal: game, ..) -> {
-      assert game.moving_player == moving_player as critical_error_text
+    GameState(status: GameOngoing(moving_player), ..) -> {
+      assert game.internal.moving_player == moving_player as critical_error_text
 
-      Ok(get_all_moves_internal(game:))
+      Ok(game.all_moves)
     }
   }
 }
@@ -536,7 +550,7 @@ pub type GetPastPositionError {
 /// 
 /// Errors if `move_number` is negative or larger than the `game`'s history.
 pub fn get_past_position(
-  game game: GameState,
+  game root_game: GameState,
   move_number move_number: Int,
 ) -> Result(GameState, GetPastPositionError) {
   use <- bool.guard(
@@ -546,7 +560,7 @@ pub fn get_past_position(
     )),
   )
 
-  let max_move_number = list.length(game.history)
+  let max_move_number = list.length(root_game.history)
   use <- bool.guard(
     when: move_number > max_move_number,
     return: Error(GetPastPositionWithMoveNumberExceedingHistory(
@@ -555,24 +569,39 @@ pub fn get_past_position(
     )),
   )
 
-  let init_game =
-    GameState(
-      internal: game.starting_position,
-      history: [],
-      status: GameOngoing(game.starting_position.moving_player),
-      starting_position: game.starting_position,
-    )
+  let after_game_history =
+    root_game.history
+    |> list.take(move_number)
 
-  game.history
-  |> list.take(move_number)
-  |> list.fold(init_game, fn(game, move) {
-    let #(move, moving_player) = move
-    assert game.status == GameOngoing(moving_player) as critical_error_text
+  let after_game =
+    after_game_history
+    |> list.fold(root_game.starting_position, fn(game, move) {
+      let #(move, moving_player) = move
+      assert game.moving_player == moving_player as critical_error_text
 
-    let assert Ok(game) = player_move(game:, move:)
-    game
-  })
-  |> Ok
+      let after = do_move(game:, move:)
+      let after =
+        OngoingGameState(
+          ..after,
+          moving_player: player_flip(after.moving_player),
+        )
+      after
+    })
+
+  let after_status = {
+    case is_game_ended(after_game) {
+      Some(end_condition) -> GameEnded(info: end_condition)
+      None -> GameOngoing(next_player: after_game.moving_player)
+    }
+  }
+
+  Ok(GameState(
+    internal: after_game,
+    history: after_game_history,
+    status: after_status,
+    starting_position: root_game.starting_position,
+    all_moves: find_all_moves_internal(after_game),
+  ))
 }
 
 /// Determines whether the player's king is in check by the opponent.
@@ -584,38 +613,39 @@ pub fn is_in_check(game game: GameState) -> Bool {
 /// checking for an `EndCondition`.
 fn player_move_internal(
   game game: OngoingGameState,
+  all_moves all_moves: dict.Dict(Coordinate, set.Set(AvailableMove)),
   move move: Move,
 ) -> Result(#(OngoingGameState, GameStatus), PlayerMoveError) {
   {
-    // Check if given move is legal by getting the available moves
-    // from the move's from-square and checking if given move is in that set
-    let available_moves =
-      {
-        let from = case move {
-          EnPassant(from, _) -> from
-          PawnPromotion(from, _, _) -> from
-          StdMove(from, _) -> from
-          LongCastle | ShortCastle ->
-            case game.moving_player {
-              White -> Coordinate(FileE, Row1)
-              Black -> Coordinate(FileE, Row8)
-            }
-        }
-
-        get_moves_internal(game:, figure: from)
-      }
-      |> result.map_error(fn(e) { PlayerMoveWithInvalidFigure(reason: e) })
-    use available_moves <- result.try(available_moves)
+    // TODO: check if this should be its own function
     let is_legal = {
-      // Map move to its corresponding AvailableMove
-      let move = case move {
-        StdMove(_, to:) -> StdMoveAvailable(to:)
-        PawnPromotion(_, _, to:) -> PawnPromotionAvailable(to:)
-        EnPassant(_, to:) -> EnPassantAvailable(to:)
-        ShortCastle -> ShortCastleAvailable
-        LongCastle -> LongCastleAvailable
+      let #(from, available_move) = case move {
+        StdMove(from:, to:) -> #(from, StdMoveAvailable(to:))
+        PawnPromotion(from:, to:, new_figure: _) -> #(
+          from,
+          PawnPromotionAvailable(to:),
+        )
+        EnPassant(from:, to:) -> #(from, EnPassantAvailable(to:))
+        LongCastle -> {
+          let from = case game.moving_player {
+            White -> Coordinate(FileE, Row1)
+            Black -> Coordinate(FileE, Row8)
+          }
+          #(from, LongCastleAvailable)
+        }
+        ShortCastle -> {
+          let from = case game.moving_player {
+            White -> Coordinate(FileE, Row1)
+            Black -> Coordinate(FileE, Row8)
+          }
+          #(from, ShortCastleAvailable)
+        }
       }
-      set.contains(available_moves, move)
+
+      case all_moves |> dict.get(from) {
+        Error(_) -> False
+        Ok(all_moves) -> set.contains(all_moves, available_move)
+      }
     }
     use <- bool.guard(when: !is_legal, return: Error(PlayerMoveIsIllegal))
 
@@ -755,7 +785,7 @@ fn is_checkmate_or_stalemate(
   let opponent_game = OngoingGameState(..game, moving_player: opponent_player)
 
   let opponent_has_no_moves =
-    get_all_moves_internal(game: opponent_game)
+    find_all_moves_internal(game: opponent_game)
     |> dict.is_empty()
 
   let opponent_is_in_check = is_in_check_internal(game: opponent_game)
@@ -789,8 +819,8 @@ fn is_fifty_move_rule(game game: OngoingGameState) -> Bool {
   game.fifty_move_rule_counter >= 100
 }
 
-/// Retrieve all legal moves of all figures of `moving_player`
-fn get_all_moves_internal(
+/// Find all legal moves of all figures of `moving_player`
+fn find_all_moves_internal(
   game game: OngoingGameState,
 ) -> dict.Dict(Coordinate, set.Set(AvailableMove)) {
   let king = case game.moving_player {
@@ -816,7 +846,7 @@ fn get_all_moves_internal(
     figure_coords
     |> list.map(fn(from) {
       let moves =
-        get_moves_internal(game:, figure: from)
+        find_moves_internal(game:, figure: from)
         // result.unwrap is okay here because `from` should always be valid
         |> result.lazy_unwrap(fn() { panic as critical_error_text })
 
@@ -832,9 +862,8 @@ fn get_all_moves_internal(
   all_moves
 }
 
-/// Retrieve all legal moves of a given figure.
-/// Unlike `get_moves` this doesn't require a `Game` variable
-fn get_moves_internal(
+/// Find all legal moves of a figure
+fn find_moves_internal(
   game game: OngoingGameState,
   figure coord: Coordinate,
 ) -> Result(set.Set(AvailableMove), SelectFigureError) {
