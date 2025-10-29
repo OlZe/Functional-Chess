@@ -267,7 +267,8 @@ pub fn checkmating_test() {
 
 fn render_move_with_san(game game: c.GameState, move move: c.Move) -> String {
   let assert Ok(after) = c.player_move(game:, move:)
-  let assert Ok(description) = san.describe(game:, move:)
+  let assert Ok(description) =
+    san.describe(before_state: game, move:, after_state: after)
 
   [game, after]
   |> list.map(r.render)

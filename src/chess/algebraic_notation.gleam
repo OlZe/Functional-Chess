@@ -57,7 +57,7 @@ import chess as c
 import gleam/bool
 import gleam/dict
 import gleam/list
-import gleam/option.{Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/set
 
@@ -73,88 +73,84 @@ pub type DescribeError {
 /// 
 /// See the module description for the formatting rules and examples.
 /// 
-/// `game` is the state *before* executing the move.
+/// `before_state` and `after_state` are the GameStates immediatly before and immediatly after executing the move.
+/// (This is done for performance reasons.)
 /// 
-/// Errors if the game is already over, or the provided `move` not legal.
+/// Errors if the game of `before_state` is already over, or the provided `move` is moving a non-existing/opposing figure.
+/// 
+/// Warning: For performance reasons, this does not perform proper legality checking of the `move`, `before_state` and `after_state`,
+/// meaning that if this function is misused, it may return a non-Error.
 pub fn describe(
-  game game: c.GameState,
+  before_state before_state: c.GameState,
   move move: c.Move,
+  after_state after_state: c.GameState,
 ) -> Result(String, DescribeError) {
-  // Make move and handle errors
-  let after_state =
-    c.player_move(game:, move:)
-    |> result.map_error(fn(e) {
-      case e {
-        c.PlayerMoveIsIllegal -> ProvidedMoveIsIllegal
-        c.PlayerMoveWhileGameAlreadyOver -> GameAlreadyOver
-        c.PlayerMoveWithInvalidFigure(reason: _) -> ProvidedMoveIsIllegal
-      }
-    })
-
-  use after_state <- result.try(after_state)
-
   let all_moves =
-    c.get_all_moves(game:)
-    // panic is ok here, as it's already verified that the game is not over.
-    |> result.map_error(fn(_) { panic })
-
+    c.get_all_moves(game: before_state)
+    |> result.map_error(fn(_) { GameAlreadyOver })
   use all_moves <- result.try(all_moves)
 
-  describe_internal(game:, after_game: after_state, all_moves:, move:)
-  |> Ok
-}
-
-fn describe_internal(
-  game game: c.GameState,
-  after_game after_game: c.GameState,
-  all_moves all_moves: dict.Dict(c.Coordinate, set.Set(c.AvailableMove)),
-  move move: c.Move,
-) -> String {
   let is_capture = {
-    let figures_after = c.get_amount_figures(after_game)
-    let figures_before = c.get_amount_figures(game)
+    let figures_after = c.get_amount_figures(after_state)
+    let figures_before = c.get_amount_figures(before_state)
     figures_before > figures_after
   }
 
   let description = case move {
-    c.ShortCastle -> "O-O"
-    c.LongCastle -> "O-O-O"
-    c.StdMove(from:, to:) -> {
-      let assert Some(#(moving_figure, _)) = c.get_figure(game, from)
-      figure(moving_figure)
-      <> disambiguation(game:, all_moves:, from:, to:, is_capture:)
-      <> takes(is_capture)
-      <> destination(to)
-    }
-    c.EnPassant(from:, to:) -> {
-      let assert Some(#(moving_figure, _)) = c.get_figure(game, from)
-      figure(moving_figure)
-      <> disambiguation(game:, all_moves:, from:, to:, is_capture:)
-      <> takes(is_capture)
-      <> destination(to)
-    }
-    c.PawnPromotion(from:, to:, new_figure:) -> {
-      let assert Some(#(moving_figure, _)) = c.get_figure(game, from)
-      figure(moving_figure)
-      <> disambiguation(game:, all_moves:, from:, to:, is_capture:)
-      <> takes(is_capture)
-      <> destination(to)
-      <> promotion(to: new_figure)
+    c.ShortCastle -> Ok("O-O")
+    c.LongCastle -> Ok("O-O-O")
+    c.StdMove(from:, to:)
+    | c.EnPassant(from:, to:)
+    | c.PawnPromotion(from:, to:, new_figure: _) -> {
+      let moving_figure =
+        c.get_figure(before_state, from)
+        |> option.to_result(ProvidedMoveIsIllegal)
+      use #(moving_figure, _) <- result.try(moving_figure)
+
+      let description =
+        describe_figure(moving_figure)
+        <> describe_disambiguation(
+          before_state:,
+          all_moves:,
+          from:,
+          to:,
+          is_capture:,
+        )
+        <> describe_takes(is_capture)
+        <> describe_destination(to)
+      Ok(description)
     }
   }
 
-  let is_checking = case c.get_status(after_game) {
-    c.GameEnded(c.Victory(by: c.Checkmated, winner: _)) -> Checkmating
-    _ -> {
-      let is_checking = after_game |> c.is_in_check()
-      case is_checking {
-        True -> Checking
-        False -> NotChecking
+  use description <- result.try(description)
+
+  let promotion = {
+    let new_figure = case move {
+      c.PawnPromotion(new_figure:, ..) -> Some(new_figure)
+      _ -> None
+    }
+    describe_promotion(new_figure)
+  }
+
+  let description = description <> promotion
+
+  let checks = {
+    let is_checking_king = case c.get_status(after_state) {
+      c.GameEnded(c.Victory(by: c.Checkmated, winner: _)) -> Checkmating
+      _ -> {
+        let is_checking = after_state |> c.is_in_check()
+        case is_checking {
+          True -> Checking
+          False -> NotChecking
+        }
       }
     }
+    describe_checks(is_checking_king)
   }
 
-  description <> checks(is_checking)
+  let description = description <> checks
+
+  Ok(description)
 }
 
 type Checking {
@@ -163,7 +159,7 @@ type Checking {
   NotChecking
 }
 
-fn checks(is_checking: Checking) -> String {
+fn describe_checks(is_checking: Checking) -> String {
   case is_checking {
     NotChecking -> ""
     Checking -> "+"
@@ -171,23 +167,26 @@ fn checks(is_checking: Checking) -> String {
   }
 }
 
-fn promotion(to to: c.Figure) -> String {
-  "=" <> figure(to)
+fn describe_promotion(to to: Option(c.Figure)) -> String {
+  case to {
+    None -> ""
+    Some(to) -> "=" <> describe_figure(to)
+  }
 }
 
-fn destination(destination destination: c.Coordinate) -> String {
+fn describe_destination(destination destination: c.Coordinate) -> String {
   destination |> coord_to_string()
 }
 
-fn takes(is_takes: Bool) -> String {
+fn describe_takes(is_takes: Bool) -> String {
   case is_takes {
     False -> ""
     True -> "x"
   }
 }
 
-fn disambiguation(
-  game game: c.GameState,
+fn describe_disambiguation(
+  before_state game: c.GameState,
   all_moves all_moves: dict.Dict(c.Coordinate, set.Set(c.AvailableMove)),
   from from: c.Coordinate,
   to to: c.Coordinate,
@@ -258,7 +257,7 @@ fn disambiguation(
   }
 }
 
-fn figure(figure figure: c.Figure) -> String {
+fn describe_figure(figure figure: c.Figure) -> String {
   case figure {
     c.Pawn -> ""
     c.Bishop -> "B"
