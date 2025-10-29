@@ -617,7 +617,6 @@ fn player_move_internal(
   move move: Move,
 ) -> Result(#(OngoingGameState, GameStatus), PlayerMoveError) {
   {
-    // TODO: check if this should be its own function
     let is_legal = {
       let #(from, available_move) = case move {
         StdMove(from:, to:) -> #(from, StdMoveAvailable(to:))
